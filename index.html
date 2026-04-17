@@ -224,8 +224,8 @@
       <!-- ══ SHOTS TAB (home) ══ -->
       <div class="view active" id="view-shots">
         <div class="view-inner">
-          <div class="caption" style="margin-bottom:4px">Timemore · Breville</div>
           <div class="display">Espresso<br>Logbook</div>
+          <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#475569;margin-bottom:10px;line-height:1.5">Every shot tells a story · Chasing the perfect shot, from grind to cup.</div>
           <div class="gold-line"></div>
           <div id="shots-equipment-card"></div>
           <div id="shots-eq-card"></div>
@@ -531,15 +531,19 @@ function renderEquipmentCard(){
   const machine=(eq.machines||[])[0]||"";
   const grinder=(eq.grinders||[])[0]||"";
   if(!machine&&!grinder){el.innerHTML="";return;}
-  // Abbreviate long names for compact display
-  const abbrev=s=>s.replace("Breville Barista Touch Impress","Breville BT Impress").replace("Sage Bambino Plus","Bambino Plus");
-  const parts=[machine,grinder].filter(Boolean).map(abbrev);
-  el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:0 2px">
-    <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0">Setup</span>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">
-      ${parts.map(p=>`<span class="eq-chip">${p}</span>`).join("")}
+  el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="display:flex;align-items:center;font-family:'DM Sans',sans-serif">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:8px;color:#334155;text-transform:uppercase;letter-spacing:.1em;font-weight:500">Machine</span>
+        <span style="font-size:11px;color:#475569;font-weight:400">${machine}</span>
+      </div>
+      <div style="width:1px;height:30px;background:#1e293b;margin:0 14px"></div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:8px;color:#334155;text-transform:uppercase;letter-spacing:.1em;font-weight:500">Grinder</span>
+        <span style="font-size:11px;color:#475569;font-weight:400">${grinder}</span>
+      </div>
     </div>
-    <button onclick="navTo('settings')" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;flex-shrink:0;letter-spacing:.04em">Edit ›</button>
+    <button onclick="navTo('settings')" style="background:none;border:none;font-size:10px;color:#334155;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:.04em">Edit ›</button>
   </div>`;
 }
 function populateEquipmentSettings(){
