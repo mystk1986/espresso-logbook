@@ -528,26 +528,18 @@ function saveEquipmentFromSettings(){
 function renderEquipmentCard(){
   const el=document.getElementById("shots-eq-card");if(!el)return;
   const eq=getEquipment();
-  const items=[
-    {label:"Machine",value:(eq.machines||[]).join(", ")},
-    {label:"Grinder",value:(eq.grinders||[]).join(", ")},
-    {label:"Portafilter",value:eq.portafilter},
-    {label:"WDT",value:eq.wdt},
-    {label:"Puck screen",value:eq.puck},
-  ].filter(i=>i.value);
-  if(!items.length){el.innerHTML="";return;}
-  const half=Math.ceil(items.length/2);
-  el.innerHTML=`<div class="eq-card">
-    <div class="eq-card-header">
-      <span class="section-label" style="margin-bottom:0">My Setup</span>
-      <button onclick="navTo('settings')" style="background:none;border:none;font-size:10px;color:var(--gold);cursor:pointer;font-family:'DM Mono',monospace">Edit ›</button>
+  const machine=(eq.machines||[])[0]||"";
+  const grinder=(eq.grinders||[])[0]||"";
+  if(!machine&&!grinder){el.innerHTML="";return;}
+  // Abbreviate long names for compact display
+  const abbrev=s=>s.replace("Breville Barista Touch Impress","Breville BT Impress").replace("Sage Bambino Plus","Bambino Plus");
+  const parts=[machine,grinder].filter(Boolean).map(abbrev);
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:0 2px">
+    <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0">Setup</span>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">
+      ${parts.map(p=>`<span class="eq-chip">${p}</span>`).join("")}
     </div>
-    <div class="eq-grid">
-      ${items.map((i,idx)=>`<div class="eq-item${idx===items.length-1&&items.length%2!==0?" eq-full":""}">
-        <div class="eq-item-label">${i.label}</div>
-        <div class="eq-item-value">${i.value}</div>
-      </div>`).join("")}
-    </div>
+    <button onclick="navTo('settings')" style="background:none;border:none;font-size:10px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;flex-shrink:0;letter-spacing:.04em">Edit ›</button>
   </div>`;
 }
 function populateEquipmentSettings(){
@@ -682,16 +674,7 @@ function renderQuickLogHTML(){
         ${beans.map(b=>`<option value="${b.id}">${b.name} · ${b.roast}</option>`).join("")}
       </select>
     </div>`:""}
-    ${(()=>{const eq=getEquipment();const ms=eq.machines||[];const gs=eq.grinders||[];
-    if(!ms.length&&!gs.length)return"";
-    return`<div class="form-grid">
-      ${ms.length>1?`<div class="form-group"><label class="label">Machine</label><select id="ql-machine" onchange="shotState.machine=this.value">
-        ${ms.map((m,i)=>`<option value="${m}"${i===0?" selected":""}>${m}</option>`).join("")}
-      </select></div>`:(ms.length===1?`<div class="form-group"><label class="label">Machine</label><input type="text" value="${ms[0]}" id="ql-machine" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
-      ${gs.length>1?`<div class="form-group"><label class="label">Grinder</label><select id="ql-grinder" onchange="shotState.grinder=this.value">
-        ${gs.map((g,i)=>`<option value="${g}"${i===0?" selected":""}>${g}</option>`).join("")}
-      </select></div>`:(gs.length===1?`<div class="form-group"><label class="label">Grinder</label><input type="text" value="${gs[0]}" id="ql-grinder" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
-    </div>`;})()}
+
     <div class="form-group"><label class="label">Bean name</label><input type="text" id="ql-bean" placeholder="e.g. Dutch Colony"/></div>
     <div class="form-grid">
       <div class="form-group"><label class="label">Date</label><input type="date" id="ql-date" value="${today()}"/></div>
@@ -704,6 +687,16 @@ function renderQuickLogHTML(){
     <div class="form-group"><label class="label">Taste</label><div class="pills" id="ql-taste-pills"></div></div>
     <div class="form-group"><label class="label">Notes</label><textarea id="ql-notes" rows="2" placeholder="Puck prep, observations..."></textarea></div>
     <div id="ql-flow-preview" style="display:none" class="preview-box"><label class="label">Flow rate preview</label><div id="ql-flow-bar"></div></div>
+    ${(()=>{const eq=getEquipment();const ms=eq.machines||[];const gs=eq.grinders||[];
+    if(!ms.length&&!gs.length)return"";
+    return`<div class="form-grid" style="margin-bottom:12px">
+      ${ms.length>1?`<div class="form-group"><label class="label">Machine</label><select id="ql-machine" onchange="shotState.machine=this.value">
+        ${ms.map((m,i)=>`<option value="${m}"${i===0?" selected":""}>${m}</option>`).join("")}
+      </select></div>`:(ms.length===1?`<div class="form-group"><label class="label">Machine</label><input type="text" value="${ms[0]}" id="ql-machine" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
+      ${gs.length>1?`<div class="form-group"><label class="label">Grinder</label><select id="ql-grinder" onchange="shotState.grinder=this.value">
+        ${gs.map((g,i)=>`<option value="${g}"${i===0?" selected":""}>${g}</option>`).join("")}
+      </select></div>`:(gs.length===1?`<div class="form-group"><label class="label">Grinder</label><input type="text" value="${gs[0]}" id="ql-grinder" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
+    </div>`;})()}
     <button class="btn btn-primary" id="ql-save-btn" onclick="submitQuickLog()">Save Shot</button>
   </div>`;
   renderPillsGeneric("ql-roast-pills",ROAST_LEVELS,shotState.roast,v=>{shotState.roast=v;renderPillsGeneric("ql-roast-pills",ROAST_LEVELS,shotState.roast,null,"gold");},"gold");
@@ -916,16 +909,7 @@ function renderBeanShotFormHTML(beanName,beanId){
   wrap.innerHTML=`<div class="form-panel">
     ${bestShot?`<div style="background:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--gold)">⏱ Stop at ~${(bestShot.yieldG-1.5).toFixed(0)}g on scale</div>`:""}
     <div class="form-group"><label class="label">Bean</label><input type="text" value="${beanName}" style="background:var(--surface);color:var(--muted)" readonly/></div>
-    ${(()=>{const eq=getEquipment();const ms=eq.machines||[];const gs=eq.grinders||[];
-    if(!ms.length&&!gs.length)return"";
-    return`<div class="form-grid">
-      ${ms.length>1?`<div class="form-group"><label class="label">Machine</label><select id="bsf-machine" onchange="shotState.machine=this.value">
-        ${ms.map((m,i)=>`<option value="${m}"${i===0?" selected":""}>${m}</option>`).join("")}
-      </select></div>`:(ms.length===1?`<div class="form-group"><label class="label">Machine</label><input type="text" value="${ms[0]}" id="bsf-machine" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
-      ${gs.length>1?`<div class="form-group"><label class="label">Grinder</label><select id="bsf-grinder" onchange="shotState.grinder=this.value">
-        ${gs.map((g,i)=>`<option value="${g}"${i===0?" selected":""}>${g}</option>`).join("")}
-      </select></div>`:(gs.length===1?`<div class="form-group"><label class="label">Grinder</label><input type="text" value="${gs[0]}" id="bsf-grinder" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
-    </div>`;})()}
+
     <div class="form-grid">
       <div class="form-group"><label class="label">Date</label><input type="date" id="bsf-date" value="${today()}"/></div>
       <div class="form-group"><label class="label">Dose (g)</label><input type="number" id="bsf-dose" value="${bean?.defaultDose||21.5}" step="0.1"/></div>
@@ -940,6 +924,16 @@ function renderBeanShotFormHTML(beanName,beanId){
     <div class="form-group"><label class="label">Taste</label><div class="pills" id="bsf-taste-pills"></div></div>
     <div class="form-group"><label class="label">Notes</label><textarea id="bsf-notes" rows="2" placeholder="Puck prep, observations..."></textarea></div>
     <div id="bsf-flow-preview" style="display:none" class="preview-box"><label class="label">Flow rate preview</label><div id="bsf-flow-bar"></div></div>
+    ${(()=>{const eq=getEquipment();const ms=eq.machines||[];const gs=eq.grinders||[];
+    if(!ms.length&&!gs.length)return"";
+    return`<div class="form-grid" style="margin-bottom:12px">
+      ${ms.length>1?`<div class="form-group"><label class="label">Machine</label><select id="bsf-machine" onchange="shotState.machine=this.value">
+        ${ms.map((m,i)=>`<option value="${m}"${i===0?" selected":""}>${m}</option>`).join("")}
+      </select></div>`:(ms.length===1?`<div class="form-group"><label class="label">Machine</label><input type="text" value="${ms[0]}" id="bsf-machine" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
+      ${gs.length>1?`<div class="form-group"><label class="label">Grinder</label><select id="bsf-grinder" onchange="shotState.grinder=this.value">
+        ${gs.map((g,i)=>`<option value="${g}"${i===0?" selected":""}>${g}</option>`).join("")}
+      </select></div>`:(gs.length===1?`<div class="form-group"><label class="label">Grinder</label><input type="text" value="${gs[0]}" id="bsf-grinder" readonly style="background:var(--surface);color:var(--muted)"/></div>`:"<div></div>")}
+    </div>`;})()}
     <button class="btn btn-primary" id="bsf-save-btn" onclick="submitBeanShotForm('${beanName}','${beanId}')">Save Shot</button>
   </div>`;
   renderPillsGeneric("bsf-roast-pills",ROAST_LEVELS,shotState.roast,v=>{shotState.roast=v;renderPillsGeneric("bsf-roast-pills",ROAST_LEVELS,shotState.roast,null,"gold");},"gold");
