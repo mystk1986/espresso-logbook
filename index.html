@@ -225,10 +225,8 @@
       <div class="view active" id="view-shots">
         <div class="view-inner">
           <div class="display">Espresso<br>Logbook</div>
-          <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#475569;margin-bottom:10px;line-height:1.5">Every shot tells a story · Chasing the perfect shot, from grind to cup.</div>
+          <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#475569;margin-top:5px;margin-bottom:10px;line-height:1.5">Every shot tells a story · Chasing the perfect shot, from grind to cup.</div>
           <div class="gold-line"></div>
-          <div id="shots-equipment-card"></div>
-          <div id="shots-eq-card"></div>
           <div id="shots-stats"></div>
           <div id="shots-best-banner"></div>
           <button class="btn btn-primary btn-margin" id="toggle-shot-btn" onclick="toggleQuickLog()">+ Log a Shot</button>
@@ -557,7 +555,6 @@ function populateEquipmentSettings(){
 
 // ══ SHOTS TAB ════════════════════════════════════════════
 function renderShotsTab(){
-  renderEquipmentCard();
   // Stats
   const statsEl=document.getElementById("shots-stats");
   if(logs.length){
@@ -1140,7 +1137,6 @@ function saveSettings(){
   if(b)localStorage.setItem("bean_db_id",b);
   saveEquipmentFromSettings();
   showSuccess("Settings saved ✓");
-  renderEquipmentCard();
   loadAll();
 }
 function clearToken(){if(!confirm("Disconnect and reset?"))return;localStorage.removeItem("notion_token");location.reload();}
