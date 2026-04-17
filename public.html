@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#020817"/>
+  <title>Espresso Logbook</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --bg:#020817;--surface:#0f172a;--surface2:#1e293b;--border:#1e293b;--border2:#334155;
+      --text:#e2e8f0;--text2:#94a3b8;--muted:#475569;
+      --gold:#c8963e;--gold-dark:#92681f;--gold-dim:#c8963e33;
+      --green:#22c55e;--orange:#f97316;--red:#ef4444;
+      --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow:hidden}
+    ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+    #app{height:100%;display:flex;flex-direction:column;padding-top:var(--safe-top)}
+    #view-container{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(68px + var(--safe-bottom))}
+    .view{display:none;padding:24px 16px 0}.view.active{display:block}
+    .view-inner{max-width:540px;margin:0 auto}
+    #bottom-nav{position:fixed;bottom:0;left:0;right:0;padding-bottom:var(--safe-bottom);background:rgba(2,8,23,0.95);backdrop-filter:blur(12px);border-top:1px solid var(--border);display:flex;z-index:100}
+    .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .15s}
+    .nav-btn.active{color:var(--gold)}
+    .nav-icon{font-size:17px;line-height:1}
+    .display{font-family:'Playfair Display',serif;font-size:28px;color:#f8fafc;line-height:1.1}
+    .label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:4px}
+    .gold-line{height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin-bottom:14px}
+    .back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;margin-bottom:12px;padding:0}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+    .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center}
+    .stat-value{font-size:18px;color:var(--gold);font-weight:600}
+    .stat-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+    .best-banner{background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#86efac;line-height:1.6}
+    .best-banner-label{font-size:9px;color:#4ade80;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+    .shot-header-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px}
+    .data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+    .data-cell{background:var(--surface2);border-radius:8px;padding:8px 6px;text-align:center}
+    .data-cell-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+    .data-cell-value{font-size:14px;color:#f1f5f9;font-weight:600}
+    .flow-box{background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:10px}
+    .flow-bar-track{height:6px;background:var(--surface);border-radius:99px;overflow:hidden;margin-top:6px}
+    .flow-bar-fill{height:100%;border-radius:99px}
+    .flow-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:2px}
+    .info-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .info-cell{background:var(--surface2);border-radius:8px;padding:8px 12px}
+    .tag{font-size:9px;padding:2px 8px;border-radius:99px;letter-spacing:.06em;text-transform:uppercase;display:inline-block}
+    .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0}
+    .note-box{background:var(--surface2);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.5}
+    .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+    .pill{padding:5px 12px;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;border:1px solid var(--border2);background:transparent;color:#64748b;transition:all .15s}
+    .pill.active-gold-outline{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
+    .bean-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+    .bean-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s}
+    .bean-card:active{transform:scale(.97)}
+    .bean-card.status-dialled{border-color:#22c55e44}
+    .bean-card.status-dialling{border-color:#f9731644}
+    .bean-card-name{font-size:13px;color:#f1f5f9;font-weight:500;margin-bottom:3px;line-height:1.3}
+    .bean-card-roast{font-size:10px;color:var(--muted);margin-bottom:8px}
+    .bean-card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+    .bean-card-shots{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .bean-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .bean-detail-header{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}
+    .bean-detail-name{font-family:'Playfair Display',serif;font-size:22px;color:#f8fafc;margin-bottom:4px}
+    .bean-reference-card{background:var(--surface);border:1px solid var(--gold);border-radius:12px;padding:14px;margin-bottom:14px}
+    .bean-reference-label{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+    .stop-target{display:inline-flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid var(--gold);border-radius:99px;padding:5px 14px;font-size:11px;color:var(--gold);margin-bottom:14px}
+    .dial-progress{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .dial-bar{flex:1;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden}
+    .dial-bar-fill{height:100%;border-radius:99px;background:var(--green)}
+    .section-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+    .guide-section{margin-bottom:20px}
+    .guide-section-title{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+    .guide-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px}
+    .guide-card-title{font-size:13px;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+    .guide-rule{display:flex;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text2);line-height:1.5}
+    .guide-rule-arrow{color:var(--gold);flex-shrink:0}
+    .loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:20px 0}
+    .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .empty{text-align:center;color:#334155;font-size:13px;padding:40px 0;line-height:2}
+    .readonly-badge{display:inline-flex;align-items:center;gap:5px;font-size:9px;color:var(--muted);background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:3px 10px;margin-bottom:16px;font-family:'DM Sans',sans-serif}
+    .eq-chip{font-size:9px;color:#64748b;background:var(--surface2);border-radius:99px;padding:2px 8px;border:1px solid var(--border2)}
+    .eq-footer{font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+    .eq-dot{width:3px;height:3px;border-radius:50%;background:var(--border2);flex-shrink:0}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="view-container">
+
+    <!-- SHOTS TAB -->
+    <div class="view active" id="view-shots">
+      <div class="view-inner">
+        <div class="display">Espresso<br>Logbook</div>
+        <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#475569;margin-top:5px;margin-bottom:10px;line-height:1.5">Every shot tells a story. Chasing the perfect shot, from grind to cup.</div>
+        <div class="gold-line"></div>
+        <div class="readonly-badge">◎ Read-only view</div>
+        <div id="shots-stats"></div>
+        <div id="shots-best-banner"></div>
+        <div id="shots-filters"></div>
+        <div id="shots-list"></div>
+      </div>
+    </div>
+
+    <!-- BEANS TAB -->
+    <div class="view" id="view-beans">
+      <div class="view-inner">
+        <div class="display" style="font-size:22px;margin-bottom:4px">Beans</div>
+        <div class="gold-line"></div>
+        <div id="bean-grid-container"></div>
+      </div>
+    </div>
+
+    <!-- BEAN DETAIL -->
+    <div class="view" id="view-bean-detail">
+      <div class="view-inner">
+        <button class="back-btn" onclick="navTo('beans')">← All Beans</button>
+        <div id="bean-detail-content"></div>
+      </div>
+    </div>
+
+    <!-- GUIDE TAB -->
+    <div class="view" id="view-guide">
+      <div class="view-inner">
+        <div class="display" style="font-size:22px;margin-bottom:4px">Guide</div>
+        <div class="gold-line"></div>
+        <div id="guide-content"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav id="bottom-nav">
+    <button class="nav-btn active" id="nav-shots" onclick="navTo('shots')"><span class="nav-icon">≡</span><span>Shots</span></button>
+    <button class="nav-btn" id="nav-beans" onclick="navTo('beans')"><span class="nav-icon">⌾</span><span>Beans</span></button>
+    <button class="nav-btn" id="nav-guide" onclick="navTo('guide')"><span class="nav-icon">◎</span><span>Guide</span></button>
+  </nav>
+</div>
+
+<script>
+// ══ CONFIG — paste your Google Apps Script URL here ══════════════════
+// This is the SAME URL you already have, just with ?type=shots or ?type=beans
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwr9I4ceTwi3GmD5mS_9Eg8Lpzm59gebPGX6uroEn2RHZxf1Y8TiAa2-2VcnnXSUhGy/exec";
+
+const ROAST_LEVELS   = ["Light","Medium-Light","Medium","Medium-Dark","Dark"];
+const TASTE_PROFILES = ["Sour","Slightly Sour","Balanced","Slightly Bitter","Bitter"];
+
+let logs=[], beans=[], filterTaste="All", filterBean="All", currentBeanId=null;
+
+// ══ FETCH DATA ═══════════════════════════════════════════════════════
+async function loadAll(){
+  showLoading("shots-list","Loading shots...");
+  showLoading("bean-grid-container","Loading beans...");
+  try{
+    const [shotRes, beanRes] = await Promise.all([
+      fetch(SCRIPT_URL + "?type=shots").then(r=>r.json()),
+      fetch(SCRIPT_URL + "?type=beans").then(r=>r.json())
+    ]);
+    logs  = (shotRes.results||[]).map(mapShot);
+    beans = (beanRes.results||[]).map(mapBean);
+    renderAll();
+  }catch(e){
+    document.getElementById("shots-list").innerHTML = `<div class="empty">Could not load data.<br>Please check back later.</div>`;
+  }
+}
+
+// ══ MAPPERS ═══════════════════════════════════════════════════════════
+const parseRT   = p=>p?.rich_text?.[0]?.plain_text||"";
+const parseTitle= p=>p?.title?.[0]?.plain_text||"";
+const parseSel  = p=>p?.select?.name||"";
+const parseMS   = p=>(p?.multi_select||[]).map(o=>o.name);
+const parseNum  = p=>p?.number??0;
+const parseDate = p=>p?.date?.start||"";
+
+function mapShot(pg){const p=pg.properties||{};return{
+  id:pg.id, date:parseDate(p["Date"]), bean:parseRT(p["Bean"]), roast:parseSel(p["Roast"]),
+  doseG:parseNum(p["Dose (g)"]), yieldG:parseNum(p["Yield (g)"]), timeS:parseNum(p["Time (s)"]),
+  grindSetting:parseRT(p["Grind Setting"]), taste:parseSel(p["Taste"]),
+  flowRate:parseNum(p["Flow Rate (g/s)"]), ratio:parseRT(p["Ratio"]), notes:parseRT(p["Notes"]),
+  machine:parseSel(p["Machine"]), grinder:parseSel(p["Grinder"])
+};}
+function mapBean(pg){const p=pg.properties||{};return{
+  id:pg.id, name:parseTitle(p["Bean Name"]), origin:parseRT(p["Origin"]),
+  roast:parseSel(p["Roast"]), process:parseSel(p["Process"]),
+  flavorTags:parseMS(p["Flavor Tags"]),
+  defaultDose:parseNum(p["Default Dose (g)"]), defaultGrind:parseRT(p["Default Grind"])
+};}
+
+// ══ HELPERS ══════════════════════════════════════════════════════════
+const tasteColor=t=>({Sour:"#ef4444","Slightly Sour":"#f97316",Balanced:"#22c55e","Slightly Bitter":"#f97316",Bitter:"#ef4444"}[t]||"#94a3b8");
+const flowColor=v=>v>=1&&v<=2?"#22c55e":v<1?"#ef4444":"#f97316";
+const tagHTML=(l,c)=>`<span class="tag" style="border:1px solid ${c}44;background:${c}18;color:${c}">${l}</span>`;
+function getBestShot(beanName){const bl=logs.filter(l=>l.bean===beanName&&l.taste==="Balanced");return bl.length?bl[0]:null;}
+function getBeanStatus(beanName){
+  const bl=logs.filter(l=>l.bean===beanName);if(!bl.length)return"new";
+  if(bl.some(l=>l.taste==="Balanced")){const l3=bl.slice(0,3);if(l3.length>=2&&l3.every(l=>l.taste!=="Balanced"))return"attention";return"dialled";}
+  return"dialling";
+}
+const getStatusColor=s=>({dialled:"#22c55e",dialling:"#f97316",new:"#475569",attention:"#ef4444"}[s]||"#475569");
+const getStatusLabel=s=>({dialled:"Dialled In",dialling:"Dialling In",new:"New",attention:"Needs Attention"}[s]||"New");
+
+function flowBarHTML(value){
+  const pct=Math.min(100,Math.max(0,((value-0.5)/2.5)*100));
+  const color=flowColor(value);
+  return`<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>3 g/s</span></div>
+<div class="flow-bar-track"><div class="flow-bar-fill" style="width:${pct}%;background:${color}"></div></div>`;
+}
+
+function showLoading(id,msg){const el=document.getElementById(id);if(el)el.innerHTML=`<div class="loading"><div class="spinner"></div>${msg}</div>`;}
+
+// ══ NAVIGATION ═══════════════════════════════════════════════════════
+function navTo(view){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  const vEl=document.getElementById("view-"+view);if(vEl)vEl.classList.add("active");
+  const nEl=document.getElementById("nav-"+view);
+  if(nEl)nEl.classList.add("active");
+  else if(view==="bean-detail")document.getElementById("nav-beans").classList.add("active");
+  document.getElementById("view-container").scrollTop=0;
+  if(view==="bean-detail")renderBeanDetail();
+  else if(view==="guide")renderGuide();
+}
+
+// ══ RENDER ALL ════════════════════════════════════════════════════════
+function renderAll(){renderShotsTab();renderBeansTab();renderGuide();}
+
+// ══ SHOTS TAB ════════════════════════════════════════════════════════
+function renderShotsTab(){
+  // Stats
+  const statsEl=document.getElementById("shots-stats");
+  if(logs.length){
+    const valid=logs.filter(l=>l.timeS>0&&l.yieldG>0);
+    const avg=valid.length?(valid.reduce((a,l)=>a+l.yieldG/l.timeS,0)/valid.length).toFixed(2):"—";
+    statsEl.innerHTML=`<div class="stats">
+      <div class="stat"><div class="stat-value">${logs.length}</div><div class="stat-label">Shots</div></div>
+      <div class="stat"><div class="stat-value">${avg}</div><div class="stat-label">Avg g/s</div></div>
+      <div class="stat"><div class="stat-value">${logs.filter(l=>l.taste==="Balanced").length}</div><div class="stat-label">Balanced</div></div>
+    </div>`;
+  }else statsEl.innerHTML="";
+  // Best shot
+  const best=logs.find(l=>l.taste==="Balanced");
+  const bestEl=document.getElementById("shots-best-banner");
+  if(best)bestEl.innerHTML=`<div class="best-banner"><div class="best-banner-label">Last best shot</div>✦ ${best.bean||"Unknown"} · ${best.grindSetting||"—"} · ${best.doseG}g → ${best.yieldG}g in ${best.timeS}s</div>`;
+  else bestEl.innerHTML="";
+  // Filters
+  const uniqueBeans=[...new Set(logs.map(l=>l.bean).filter(Boolean))];
+  let fHtml="";
+  if(uniqueBeans.length>1){
+    fHtml+=`<div class="filter-row">`;
+    ["All",...uniqueBeans].forEach(f=>{fHtml+=`<button class="pill${filterBean===f?" active-gold-outline":""}" onclick="filterBean='${f}';renderShotsTab()">${f}</button>`;});
+    fHtml+=`</div>`;
+  }
+  fHtml+=`<div class="filter-row">`;
+  ["All",...TASTE_PROFILES].forEach(f=>{fHtml+=`<button class="pill${filterTaste===f?" active-gold-outline":""}" onclick="filterTaste='${f}';renderShotsTab()">${f}</button>`;});
+  fHtml+=`</div>`;
+  document.getElementById("shots-filters").innerHTML=fHtml;
+  // Shot list
+  const filtered=logs.filter(l=>(filterTaste==="All"||l.taste===filterTaste)&&(filterBean==="All"||l.bean===filterBean));
+  document.getElementById("shots-list").innerHTML=filtered.length
+    ?filtered.map((s,i)=>renderShotCard(s,i)).join("")
+    :`<div class="empty">${!logs.length?"No shots logged yet.":"No shots match these filters."}</div>`;
+}
+
+function renderShotCard(shot,idx){
+  const flowRate=shot.flowRate||(shot.timeS>0?shot.yieldG/shot.timeS:0);
+  const color=tasteColor(shot.taste);
+  const bean=beans.find(b=>b.name===shot.bean);
+  const tags=bean?.flavorTags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:"";
+  return`<div class="card" style="border-left:3px solid ${color}">
+    <div class="shot-header-row">
+      <div>
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Shot #${idx+1}${shot.date?" · "+shot.date:""}</div>
+        <div style="font-size:14px;color:#e2e8f0;margin-top:2px;font-weight:500">${shot.bean||"—"}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:1px">${shot.roast}${bean?.origin?" · "+bean.origin:""}</div>
+      </div>
+      <span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${shot.taste||"—"}</span>
+    </div>
+    ${tags}
+    <div class="data-grid">
+      <div class="data-cell"><div class="data-cell-label">Dose</div><div class="data-cell-value">${shot.doseG}g</div></div>
+      <div class="data-cell"><div class="data-cell-label">Yield</div><div class="data-cell-value">${shot.yieldG}g</div></div>
+      <div class="data-cell"><div class="data-cell-label">Time</div><div class="data-cell-value">${shot.timeS}s</div></div>
+      <div class="data-cell"><div class="data-cell-label">Ratio</div><div class="data-cell-value">${shot.ratio||"—"}</div></div>
+    </div>
+    ${flowRate>0?`<div class="flow-box">${flowBarHTML(flowRate)}</div>`:""}
+    <div class="info-row">
+      <div class="info-cell"><div class="label">Grind</div><div style="font-size:13px;color:#e2e8f0">${shot.grindSetting||"—"}</div></div>
+      <div class="info-cell"><div class="label">Roast</div><div style="font-size:13px;color:#e2e8f0">${shot.roast||"—"}</div></div>
+    </div>
+    ${shot.notes?`<div class="note-box">${shot.notes}</div>`:""}
+    ${(shot.machine||shot.grinder)?`<div class="eq-footer">${shot.machine?`<span class="eq-chip">${shot.machine.replace("Breville Barista Touch Impress","Breville BT Impress")}</span>`:""}${shot.machine&&shot.grinder?`<div class="eq-dot"></div>`:""}${shot.grinder?`<span class="eq-chip">${shot.grinder}</span>`:""}</div>`:""}
+  </div>`;
+}
+
+// ══ BEANS TAB ════════════════════════════════════════════════════════
+function renderBeansTab(){
+  const el=document.getElementById("bean-grid-container");if(!el)return;
+  let html=`<div class="bean-grid">`;
+  beans.forEach(bean=>{
+    const status=getBeanStatus(bean.name);
+    const statusColor=getStatusColor(status);
+    const bl=logs.filter(l=>l.bean===bean.name);
+    const lastShot=bl[0];
+    const tasteC=lastShot?tasteColor(lastShot.taste):"#475569";
+    const tagsHTML=bean.flavorTags.slice(0,2).map(t=>tagHTML(t,"#c8963e")).join(" ");
+    html+=`<div class="bean-card status-${status}" onclick="currentBeanId='${bean.id}';navTo('bean-detail')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+        <div class="bean-status-dot" style="background:${statusColor};margin-top:3px"></div>
+        <span style="font-size:9px;color:${statusColor};text-transform:uppercase;letter-spacing:.06em">${getStatusLabel(status)}</span>
+      </div>
+      <div class="bean-card-name">${bean.name}</div>
+      <div class="bean-card-roast">${bean.roast||"—"}${bean.origin?" · "+bean.origin:""}</div>
+      ${tagsHTML?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${tagsHTML}</div>`:""}
+      <div class="bean-card-footer">
+        <span class="bean-card-shots">${bl.length} shot${bl.length!==1?"s":""}</span>
+        ${lastShot?`<span class="tag" style="background:${tasteC}22;color:${tasteC};border:1px solid ${tasteC}44">${lastShot.taste}</span>`:""}
+      </div>
+    </div>`;
+  });
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+// ══ BEAN DETAIL ═══════════════════════════════════════════════════════
+function renderBeanDetail(){
+  const bean=beans.find(b=>b.id===currentBeanId);
+  if(!bean){document.getElementById("bean-detail-content").innerHTML=`<div class="empty">Bean not found.</div>`;return;}
+  const bl=logs.filter(l=>l.bean===bean.name);
+  const bestShot=getBestShot(bean.name);
+  const status=getBeanStatus(bean.name);
+  const statusColor=getStatusColor(status);
+  const balancedCount=bl.filter(l=>l.taste==="Balanced").length;
+  const dialPct=bl.length?Math.min(100,Math.round((balancedCount/Math.max(bl.length,1))*100)):0;
+  let html="";
+  // Stats
+  if(bl.length){
+    const valid=bl.filter(l=>l.timeS>0&&l.yieldG>0);
+    const avg=valid.length?(valid.reduce((a,l)=>a+l.yieldG/l.timeS,0)/valid.length).toFixed(2):"—";
+    html+=`<div class="stats">
+      <div class="stat"><div class="stat-value">${bl.length}</div><div class="stat-label">Shots</div></div>
+      <div class="stat"><div class="stat-value">${avg}</div><div class="stat-label">Avg g/s</div></div>
+      <div class="stat"><div class="stat-value">${balancedCount}</div><div class="stat-label">Balanced</div></div>
+    </div>`;
+  }
+  // Best banner
+  if(bestShot){
+    html+=`<div class="best-banner"><div class="best-banner-label">Best shot for this bean</div>✦ ${bestShot.grindSetting||"—"} grind · ${bestShot.doseG}g → ${bestShot.yieldG}g in ${bestShot.timeS}s</div>`;
+  }
+  // Header
+  html+=`<div class="bean-detail-header">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div class="bean-status-dot" style="background:${statusColor};width:10px;height:10px"></div>
+      <span style="font-size:10px;color:${statusColor};text-transform:uppercase;letter-spacing:.08em">${getStatusLabel(status)}</span>
+    </div>
+    <div class="bean-detail-name">${bean.name}</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px">${[bean.roast,bean.origin,bean.process].filter(Boolean).join(" · ")}</div>
+    ${bean.flavorTags.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:""}
+    <div class="dial-progress">
+      <div class="dial-bar"><div class="dial-bar-fill" style="width:${dialPct}%"></div></div>
+      <span style="font-size:10px;color:var(--muted);white-space:nowrap">${balancedCount}/${bl.length} balanced</span>
+    </div>
+  </div>`;
+  // Stop target
+  if(bestShot)html+=`<div class="stop-target">⏱ Sweet spot: stop at ~${(bestShot.yieldG-1.5).toFixed(0)}g on scale</div>`;
+  // Best shot reference
+  if(bestShot){
+    html+=`<div class="bean-reference-card">
+      <div class="bean-reference-label">⭐ Best Shot Reference · ${bestShot.date}</div>
+      <div class="data-grid">${[["Dose",bestShot.doseG+"g"],["Yield",bestShot.yieldG+"g"],["Time",bestShot.timeS+"s"],["Ratio",bestShot.ratio||"—"]].map(([l,v])=>`<div class="data-cell"><div class="data-cell-label">${l}</div><div class="data-cell-value">${v}</div></div>`).join("")}</div>
+      <div class="flow-box">${flowBarHTML(bestShot.flowRate||bestShot.yieldG/bestShot.timeS)}</div>
+      <div class="info-row">
+        <div class="info-cell"><div class="label">Grind</div><div style="font-size:13px;color:#e2e8f0">${bestShot.grindSetting||"—"}</div></div>
+        <div class="info-cell"><div class="label">Roast</div><div style="font-size:13px;color:#e2e8f0">${bestShot.roast||"—"}</div></div>
+      </div>
+    </div>`;
+  }
+  // Shot history
+  html+=`<div class="section-label">${bl.length} Shot${bl.length!==1?"s":""}</div>`;
+  html+=bl.length?bl.map((s,i)=>renderShotCard(s,i)).join(""):`<div class="empty">No shots yet for this bean.</div>`;
+  document.getElementById("bean-detail-content").innerHTML=html;
+}
+
+// ══ GUIDE ════════════════════════════════════════════════════════════
+function renderGuide(){
+  const el=document.getElementById("guide-content");if(!el)return;
+  el.innerHTML=`
+  <div class="guide-section">
+    <div class="guide-section-title">Troubleshooting by Taste</div>
+    <div class="guide-card"><div class="guide-card-title"><span style="color:var(--red)">●</span> Sour / Acidic</div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Under-extracted — go 1 click finer on the grind</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Stop 1–2g earlier to cut the sour tail end</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Check puck prep — channelling causes fast uneven extraction</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Try RDT: 1–2 drops of water on beans before grinding reduces static</span></div>
+    </div>
+    <div class="guide-card"><div class="guide-card-title"><span style="color:var(--orange)">●</span> Bitter / Harsh</div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Over-extracted — go 1 click coarser on the grind</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Or stop 1–2g earlier to shorten extraction</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Lower water temperature slightly</span></div>
+    </div>
+    <div class="guide-card"><div class="guide-card-title"><span style="color:var(--muted)">●</span> Flat / Watery</div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Try adding 0.5g to your dose</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Reduce yield by 2–3g for more concentration</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Check bean freshness — stale beans lose body and sweetness</span></div>
+    </div>
+    <div class="guide-card"><div class="guide-card-title"><span style="color:#60a5fa">●</span> Inconsistent Shot to Shot</div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Focus on consistent stop timing — same yield every shot</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Stop machine when scale shows ~1.5g under target</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Improve WDT distribution before adjusting grind</span></div>
+    </div>
+  </div>
+  <div class="guide-section">
+    <div class="guide-section-title">Flow Rate Explained</div>
+    <div class="guide-card">
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Target: <strong style="color:var(--green)">1.0–2.0 g/s</strong> during main extraction</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Below 1 g/s = too slow (grind too fine)</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Above 2 g/s = too fast (grind too coarse or channelling)</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Flow rate = yield ÷ time — more precise than time alone</span></div>
+    </div>
+  </div>
+  <div class="guide-section">
+    <div class="guide-section-title">Dose & Yield Ratios</div>
+    <div class="guide-card">
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">1:2 ratio</strong> (21.5g → 43g) — classic espresso, balanced</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">1:1.5–1.8</strong> — ristretto, thick and concentrated</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">1:2.5–3</strong> — lungo, lighter body</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>The 25–30s rule is a rough guide only — taste is the real target</span></div>
+    </div>
+  </div>
+  <div class="guide-section">
+    <div class="guide-section-title">Roast Level Guide</div>
+    <div class="guide-card">
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">Light</strong> — fruity/floral, higher acidity. Finer grind, higher temp (93–94°C)</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">Medium</strong> — balanced. Standard settings. Most forgiving to dial in</span></div>
+      <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">Dark</strong> — chocolatey/smoky. Coarser grind, lower temp (88–91°C)</span></div>
+    </div>
+  </div>`;
+}
+
+// ══ INIT ══════════════════════════════════════════════════════════════
+loadAll();
+</script>
+</body>
+</html>
