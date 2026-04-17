@@ -8,39 +8,150 @@
   <meta name="apple-mobile-web-app-title" content="Espresso"/>
   <meta name="theme-color" content="#020817"/>
   <title>Espresso Logbook</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
   <style>
     :root {
-      --bg:#020817; --surface:#0f172a; --surface2:#1e293b; --border:#1e293b; --border2:#334155;
-      --text:#e2e8f0; --text2:#94a3b8; --muted:#475569; --gold:#c8963e; --gold-dark:#92681f;
-      --green:#22c55e; --orange:#f97316; --red:#ef4444;
-      --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+      --bg:#020817;--surface:#0f172a;--surface2:#1e293b;--border:#1e293b;--border2:#334155;
+      --text:#e2e8f0;--text2:#94a3b8;--muted:#475569;
+      --gold:#c8963e;--gold-dark:#92681f;--gold-dim:#c8963e33;
+      --green:#22c55e;--green-dim:#22c55e22;
+      --orange:#f97316;--orange-dim:#f9731622;
+      --red:#ef4444;--red-dim:#ef444422;
+      --blue:#60a5fa;
+      --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
     }
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow-x:hidden}
-    body{padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
-    ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-track{background:var(--surface)} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
-    #app{max-width:540px;margin:0 auto;padding:28px 18px 100px;min-height:100vh}
-    .display{font-family:'Playfair Display',serif;font-size:30px;color:#f8fafc;line-height:1.1}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow:hidden}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-track{background:var(--surface)}
+    ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+    /* ── Layout ── */
+    #app{height:100%;display:flex;flex-direction:column;padding-top:var(--safe-top)}
+    #view-container{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(72px + var(--safe-bottom))}
+    .view{display:none;padding:24px 16px 0}
+    .view.active{display:block}
+    .view-inner{max-width:540px;margin:0 auto}
+
+    /* ── Bottom nav ── */
+    #bottom-nav{position:fixed;bottom:0;left:0;right:0;padding-bottom:var(--safe-bottom);background:rgba(2,8,23,0.95);backdrop-filter:blur(12px);border-top:1px solid var(--border);display:flex;z-index:100}
+    .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;background:none;border:none;cursor:pointer;color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:color .15s}
+    .nav-btn.active{color:var(--gold)}
+    .nav-icon{font-size:18px;line-height:1}
+
+    /* ── Typography ── */
+    .display{font-family:'Playfair Display',serif;font-size:28px;color:#f8fafc;line-height:1.1}
     .label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:4px}
     .caption{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-    .gold-line{height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin:10px 0 24px}
-    .tabs{display:flex;gap:6px;margin-bottom:20px}
-    .tab{flex:1;padding:10px;border-radius:10px;font-size:12px;cursor:pointer;font-family:'DM Mono',monospace;border:1px solid var(--border);background:transparent;color:var(--muted);letter-spacing:.05em;transition:all .15s}
-    .tab.active{background:var(--gold);border-color:var(--gold);color:#fff}
+    .gold-line{height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin:8px 0 20px}
+
+    /* ── Header ── */
+    .page-header{margin-bottom:4px}
+    .back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;margin-bottom:12px;padding:0;letter-spacing:.05em}
+    .back-btn:hover{color:var(--text)}
+
+    /* ── Buttons ── */
+    .btn{width:100%;padding:12px;border:none;border-radius:10px;color:#fff;font-size:13px;font-family:'DM Mono',monospace;cursor:pointer;letter-spacing:.05em;transition:all .2s}
+    .btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-dark))}
+    .btn-primary:active{opacity:.85}
+    .btn-cancel{background:var(--surface2)}
+    .btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+    .btn-margin{margin-bottom:14px}
+    .btn-sm{width:auto;padding:5px 12px;font-size:11px;border-radius:6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace}
+
+    /* ── Cards ── */
     .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px}
-    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+    .card-gold{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold-dim)}
+
+    /* ── Stats bar ── */
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
     .stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center}
     .stat-value{font-size:18px;color:var(--gold);font-weight:600}
     .stat-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
-    .best-shot{background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#86efac;line-height:1.5}
-    .btn{width:100%;padding:12px;border:none;border-radius:10px;color:#fff;font-size:13px;font-family:'DM Mono',monospace;cursor:pointer;letter-spacing:.05em;transition:all .2s}
-    .btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-dark))}
-    .btn-primary:active{opacity:.85} .btn-cancel{background:var(--surface2)} .btn-margin{margin-bottom:16px}
-    .btn-sm{width:auto;padding:4px 10px;font-size:11px;border-radius:6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace}
-    .btn-sm.danger{color:#ef444488}
-    .form-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px}
+
+    /* ── Bean cards grid ── */
+    .bean-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+    .bean-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:transform .15s,border-color .15s;position:relative;overflow:hidden}
+    .bean-card:active{transform:scale(.97)}
+    .bean-card.status-dialled{border-color:#22c55e44}
+    .bean-card.status-dialling{border-color:#f9731644}
+    .bean-card.status-new{border-color:var(--border)}
+    .bean-card.status-attention{border-color:#ef444444}
+    .bean-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .bean-card-name{font-size:13px;color:#f1f5f9;font-weight:500;margin-bottom:3px;line-height:1.3}
+    .bean-card-roast{font-size:10px;color:var(--muted);margin-bottom:8px}
+    .bean-card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+    .bean-card-shots{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .bean-card-taste{font-size:9px;padding:2px 7px;border-radius:99px}
+    .bean-add-card{background:transparent;border:1px dashed var(--border2);border-radius:14px;padding:14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px;transition:border-color .15s}
+    .bean-add-card:active{border-color:var(--gold)}
+    .bean-add-card span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+    /* ── Best shot banner ── */
+    .best-banner{background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#86efac;line-height:1.6}
+    .best-banner-label{font-size:9px;color:#4ade80;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+
+    /* ── Bean detail ── */
+    .bean-detail-header{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px}
+    .bean-detail-name{font-family:'Playfair Display',serif;font-size:22px;color:#f8fafc;margin-bottom:4px}
+    .bean-detail-meta{font-size:11px;color:var(--text2);margin-bottom:10px}
+    .bean-reference-card{background:var(--surface);border:1px solid var(--gold);border-radius:12px;padding:14px;margin-bottom:14px;position:relative}
+    .bean-reference-label{font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+    .stop-target{display:inline-flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid var(--gold);border-radius:99px;padding:4px 12px;font-size:11px;color:var(--gold);margin-bottom:14px}
+
+    /* ── Recommendations ── */
+    .rec-panel{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:14px}
+    .rec-title{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .rec-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+    .rec-item:last-child{margin-bottom:0}
+    .rec-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px}
+
+    /* ── Freshness bar ── */
+    .freshness-row{margin-bottom:14px}
+    .freshness-bar-track{height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin-top:4px}
+    .freshness-bar-fill{height:100%;border-radius:99px;transition:width .5s}
+    .freshness-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px}
+
+    /* ── Data grid ── */
+    .data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+    .data-cell{background:var(--surface2);border-radius:8px;padding:8px 6px;text-align:center;position:relative}
+    .data-cell-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+    .data-cell-value{font-size:14px;color:#f1f5f9;font-weight:600}
+    .delta{font-size:9px;margin-top:2px;font-weight:500}
+    .delta-pos{color:var(--orange)}
+    .delta-neg{color:var(--green)}
+    .delta-zero{color:var(--muted)}
+
+    /* ── Flow rate bar ── */
+    .flow-box{background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:10px;position:relative}
+    .flow-bar-track{height:6px;background:var(--surface);border-radius:99px;overflow:visible;margin-top:6px;position:relative}
+    .flow-bar-fill{height:100%;border-radius:99px;transition:width .5s ease}
+    .flow-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:2px}
+    .flow-marker{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;z-index:2}
+    .flow-marker-ghost{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;border:2px solid var(--gold);background:transparent;z-index:1}
+    .flow-legend{display:flex;gap:12px;margin-top:6px}
+    .flow-legend-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted)}
+    .flow-legend-dot{width:8px;height:8px;border-radius:50%}
+    .flow-legend-ghost{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--gold);background:transparent}
+
+    /* ── Info row ── */
+    .info-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .info-cell{background:var(--surface2);border-radius:8px;padding:8px 12px}
+    .grind-match{display:flex;align-items:center;gap:4px;font-size:11px;margin-top:2px}
+    .grind-match-yes{color:var(--green)}
+    .grind-match-no{color:var(--orange)}
+
+    /* ── Tag / badge ── */
+    .tag{font-size:9px;padding:2px 8px;border-radius:99px;letter-spacing:.06em;text-transform:uppercase;display:inline-block}
+    .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0}
+    .note-box{background:var(--surface2);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;color:var(--text2);line-height:1.5}
+    .pills{display:flex;gap:6px;flex-wrap:wrap}
+    .pill{padding:5px 12px;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;border:1px solid var(--border2);background:transparent;color:#64748b;transition:all .15s}
+    .pill.active-gold{background:var(--gold);border-color:var(--gold);color:#fff}
+    .pill.active-gold-outline{background:var(--gold-dim);border-color:var(--gold);color:var(--gold)}
+
+    /* ── Form ── */
+    .form-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
     .form-group{margin-bottom:12px}
     input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:'DM Mono',monospace;outline:none;-webkit-appearance:none;appearance:none}
@@ -48,723 +159,988 @@
     select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
     select option{background:#1e293b;color:#e2e8f0}
     textarea{resize:vertical;line-height:1.5}
-    .pills{display:flex;gap:6px;flex-wrap:wrap}
-    .pill{padding:5px 12px;border-radius:99px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;border:1px solid var(--border2);background:transparent;color:#64748b;transition:all .15s}
-    .pill.active-gold{background:var(--gold);border-color:var(--gold);color:#fff}
-    .pill.active-gold-outline{background:#c8963e22;border-color:var(--gold);color:var(--gold)}
-    .data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
-    .data-cell{background:var(--surface2);border-radius:8px;padding:8px 6px;text-align:center}
-    .data-cell-label{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
-    .data-cell-value{font-size:14px;color:#f1f5f9;font-weight:600}
-    .flow-box{background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:10px}
-    .flow-bar-track{height:6px;background:var(--surface);border-radius:99px;overflow:hidden;margin-top:4px}
-    .flow-bar-fill{height:100%;border-radius:99px;transition:width .5s ease}
-    .flow-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:2px}
-    .info-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-    .info-cell{background:var(--surface2);border-radius:8px;padding:8px 12px}
-    .tag{font-size:9px;padding:2px 8px;border-radius:99px;letter-spacing:.06em;text-transform:uppercase;display:inline-block}
-    .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0}
-    .note-box{background:var(--surface2);border-radius:8px;padding:8px 12px;margin-top:10px;font-size:12px;color:var(--text2);line-height:1.5}
-    .filter-section{margin-bottom:16px}
-    .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;margin-bottom:10px}
-    .empty{text-align:center;color:#334155;font-size:13px;padding:48px 0;line-height:2}
-    .loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:20px 0}
-    .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .error-box{background:#1e0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#fca5a5;line-height:1.6}
-    .success-flash{background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#86efac}
-    .info-box{background:#0c1a2e;border:1px solid #1e3a5f;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:#93c5fd;line-height:1.8}
-    .info-box strong{color:#60a5fa;display:block;margin-bottom:6px;font-size:13px}
+    .prefill-notice{font-size:11px;color:var(--muted);margin-top:4px}
+    .preview-box{background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+
+    /* ── Guide page ── */
+    .guide-section{margin-bottom:20px}
+    .guide-section-title{font-size:13px;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border2)}
+    .guide-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px}
+    .guide-card-title{font-size:13px;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+    .guide-card-body{font-size:12px;color:var(--text2);line-height:1.7}
+    .guide-rule{display:flex;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text2);line-height:1.5}
+    .guide-rule-arrow{color:var(--gold);flex-shrink:0}
+
+    /* ── Dialling progress ── */
+    .dial-progress{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .dial-bar{flex:1;height:4px;background:var(--surface2);border-radius:99px;overflow:hidden}
+    .dial-bar-fill{height:100%;border-radius:99px;background:var(--green);transition:width .5s}
+
+    /* ── Msg boxes ── */
+    .error-box{background:#1e0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#fca5a5;line-height:1.5}
+    .success-flash{background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#86efac}
+    .info-box{background:#0c1a2e;border:1px solid #1e3a5f;border-radius:10px;padding:14px;margin-bottom:14px;font-size:12px;color:#93c5fd;line-height:1.8}
+    .info-box strong{color:#60a5fa;display:block;margin-bottom:6px}
     .info-box ol{padding-left:16px;color:#7dd3fc}
     .info-box li{margin-bottom:4px}
     .info-box a{color:var(--gold);text-decoration:underline}
+    .loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;padding:20px 0}
+    .spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .empty{text-align:center;color:#334155;font-size:13px;padding:40px 0;line-height:2}
+
+    /* ── Setup screen ── */
     .setup-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px}
     .setup-panel h2{font-family:'Playfair Display',serif;font-size:20px;color:#f8fafc;margin-bottom:6px}
     .setup-panel p{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px}
     .token-input-wrap{position:relative}
     .token-input-wrap input{padding-right:70px;font-size:12px}
     .token-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;font-family:'DM Mono',monospace}
-    #install-banner{display:none;background:#0f2027;border:1px solid #c8963e44;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:var(--text2);line-height:1.6}
-    #install-banner strong{color:var(--gold)}
-    #dismiss-install{float:right;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer}
-    .prefill-notice{font-size:11px;color:var(--muted);margin-top:6px}
-    .preview-box{background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:14px}
-    .bean-header{display:flex;justify-content:space-between;align-items:flex-start}
-    .bean-actions{display:flex;gap:6px;margin-left:10px;flex-shrink:0}
-    .notion-link{font-size:11px;color:var(--muted);text-align:right;margin-bottom:12px}
-    .notion-link a{color:var(--gold);text-decoration:none}
+
+    /* ── Misc ── */
+    .section-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+    .divider{height:1px;background:var(--border);margin:16px 0}
+    #global-msg{padding:0 16px}
+    .shot-header-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px}
+    .token-input-wrap input{padding-right:70px}
+    .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   </style>
 </head>
 <body>
 <div id="app">
-  <!-- Setup screen shown before token is saved -->
-  <div id="setup-screen" style="display:none">
-    <div style="margin-bottom:4px">
-      <div class="caption" style="margin-bottom:6px">Timemore · Breville</div>
-      <div class="display">Espresso<br>Logbook</div>
-      <div class="gold-line"></div>
-    </div>
-    <div class="setup-panel">
-      <h2>One-time setup</h2>
-      <p>This app stores your shots directly in your Notion workspace. You'll need a Notion integration token — it takes about 2 minutes to set up.</p>
-      <div class="info-box">
-        <strong>How to get your token</strong>
-        <ol>
-          <li>Go to <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></li>
-          <li>Click <strong>+ New integration</strong></li>
-          <li>Name it "Espresso Logbook", click Submit</li>
-          <li>Copy the <strong>Internal Integration Token</strong> (starts with <code>ntn_</code>)</li>
-          <li>In Notion, open your <strong>☕ Espresso Shot Log</strong> and <strong>🫘 Bean Database</strong> pages, click <strong>···</strong> → <strong>Connect to</strong> → select your integration</li>
-          <li>Paste the token below</li>
-        </ol>
+
+  <!-- ══ SETUP SCREEN ══ -->
+  <div id="setup-screen" style="display:none;height:100%;overflow-y:auto;padding:28px 16px">
+    <div style="max-width:540px;margin:0 auto">
+      <div style="margin-bottom:4px">
+        <div class="caption" style="margin-bottom:6px">Timemore · Breville</div>
+        <div class="display">Espresso<br>Logbook</div>
+        <div class="gold-line"></div>
       </div>
-      <div class="form-group">
-        <label class="label">Notion Integration Token</label>
-        <div class="token-input-wrap">
-          <input type="password" id="setup-token" placeholder="ntn_xxxxxxxxxxxxxxxxxxxx"/>
-          <button class="token-toggle" onclick="toggleTokenVis()">show</button>
+      <div class="setup-panel">
+        <h2>One-time setup</h2>
+        <p>Connect to your Notion workspace to store shots permanently across all devices.</p>
+        <div class="info-box">
+          <strong>How to get your token</strong>
+          <ol>
+            <li>Go to <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a></li>
+            <li>Click <strong>+ New integration</strong> → name it "Espresso Logbook"</li>
+            <li>Copy the Internal Integration Token (starts with <code>ntn_</code>)</li>
+            <li>In Notion, open ☕ Espresso Shot Log and 🫘 Bean Database → ··· → Connect to → Espresso Logbook</li>
+            <li>Paste token below</li>
+          </ol>
         </div>
+        <div class="form-group">
+          <label class="label">Notion Integration Token</label>
+          <div class="token-input-wrap">
+            <input type="password" id="setup-token" placeholder="ntn_xxxxxxxxxxxx"/>
+            <button class="token-toggle" onclick="toggleVis('setup-token',this)">show</button>
+          </div>
+        </div>
+        <div id="setup-error" style="display:none" class="error-box"></div>
+        <button class="btn btn-primary" onclick="saveToken()">Connect to Notion</button>
       </div>
-      <div id="setup-error" style="display:none" class="error-box"></div>
-      <button class="btn btn-primary" onclick="saveToken()">Connect to Notion</button>
     </div>
   </div>
 
-  <!-- Main app -->
-  <div id="main-screen" style="display:none">
-    <div style="margin-bottom:4px">
-      <div class="caption" style="margin-bottom:6px">Timemore · Breville</div>
-      <div class="display">Espresso<br>Logbook</div>
-      <div class="gold-line"></div>
-    </div>
-
-    <div id="install-banner">
-      <button id="dismiss-install">×</button>
-      <strong>Add to Home Screen</strong><br>
-      Safari → Share → "Add to Home Screen" to use this as a phone shortcut.
-    </div>
-
+  <!-- ══ MAIN APP ══ -->
+  <div id="main-screen" style="display:none;height:100%;display:flex;flex-direction:column">
     <div id="global-msg"></div>
 
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab('shots')" id="tab-shots">Shots</button>
-      <button class="tab" onclick="switchTab('beans')" id="tab-beans">Bean DB</button>
-      <button class="tab" onclick="switchTab('settings')" id="tab-settings">⚙</button>
-    </div>
+    <div id="view-container">
 
-    <!-- SHOTS -->
-    <div id="view-shots">
-      <div id="stats-bar"></div>
-      <div id="best-shot-banner"></div>
-      <button class="btn btn-primary btn-margin" id="toggle-shot-form" onclick="toggleShotForm()">+ Log a Shot</button>
-      <div id="shot-form" style="display:none">
-        <div class="form-panel">
-          <div class="form-group" id="bean-select-group"></div>
-          <div class="form-group">
-            <label class="label">Bean name <span id="override-hint" style="color:var(--muted);font-size:9px"></span></label>
-            <input type="text" id="f-beans" placeholder="e.g. Ethiopia Yirgacheffe"/>
+      <!-- ── BEANS HOME ── -->
+      <div class="view active" id="view-home">
+        <div class="view-inner">
+          <div class="page-header">
+            <div class="caption" style="margin-bottom:4px">Timemore · Breville</div>
+            <div class="display">Espresso<br>Logbook</div>
+            <div class="gold-line"></div>
           </div>
-          <div class="form-grid">
-            <div class="form-group"><label class="label">Date</label><input type="date" id="f-date"/></div>
-            <div class="form-group"><label class="label">Dose (g)</label><input type="number" id="f-dose" placeholder="21.5" step="0.1"/></div>
-            <div class="form-group"><label class="label">Yield (g)</label><input type="number" id="f-yield" placeholder="43" step="0.1" oninput="updateFlowPreview()"/></div>
-            <div class="form-group"><label class="label">Time (s)</label><input type="number" id="f-time" placeholder="30" step="1" oninput="updateFlowPreview()"/></div>
-            <div class="form-group" style="grid-column:1/-1"><label class="label">Grind setting</label><input type="text" id="f-grind" placeholder="e.g. 3rd click from 0"/></div>
-          </div>
-          <div class="form-group"><label class="label">Roast level</label><div class="pills" id="roast-pills-shot"></div></div>
-          <div class="form-group"><label class="label">Taste</label><div class="pills" id="taste-pills"></div></div>
-          <div class="form-group"><label class="label">Notes</label><textarea id="f-notes" rows="3" placeholder="Puck prep, observations, adjustments..."></textarea></div>
-          <div class="preview-box" id="flow-preview" style="display:none">
-            <label class="label">Flow rate preview</label>
-            <div id="flow-preview-bar"></div>
-          </div>
-          <button class="btn btn-primary" id="save-shot-btn" onclick="submitShot()">Save Shot</button>
+          <div id="home-stats"></div>
+          <div id="home-best-banner"></div>
+          <div class="section-label">Your Beans</div>
+          <div id="bean-grid-container"></div>
         </div>
       </div>
-      <div id="filters-section"></div>
-      <div id="shot-list"></div>
-    </div>
 
-    <!-- BEANS -->
-    <div id="view-beans" style="display:none">
-      <div class="notion-link">View in Notion → <a id="bean-db-link" href="https://www.notion.so" target="_blank">🫘 Bean Database</a></div>
-      <button class="btn btn-primary btn-margin" id="toggle-bean-form" onclick="toggleBeanForm()">+ Add Bean</button>
-      <div id="bean-form" style="display:none">
-        <div class="form-panel">
-          <div class="form-group"><label class="label">Bean name *</label><input type="text" id="b-name" placeholder="e.g. Ethiopia Yirgacheffe"/></div>
-          <div class="form-grid">
-            <div class="form-group"><label class="label">Origin / Region</label><input type="text" id="b-origin" placeholder="e.g. Ethiopia"/></div>
-            <div class="form-group"><label class="label">Process</label>
-              <select id="b-process"><option value="">— Select —</option><option>Washed</option><option>Natural</option><option>Honey</option><option>Anaerobic</option></select>
+      <!-- ── BEAN DETAIL ── -->
+      <div class="view" id="view-bean">
+        <div class="view-inner">
+          <button class="back-btn" onclick="navTo('home')">← All Beans</button>
+          <div id="bean-detail-content"></div>
+        </div>
+      </div>
+
+      <!-- ── ALL SHOTS ── -->
+      <div class="view" id="view-shots">
+        <div class="view-inner">
+          <div class="page-header">
+            <div class="display" style="font-size:22px;margin-bottom:4px">Shot History</div>
+            <div class="gold-line"></div>
+          </div>
+          <div id="shots-filters"></div>
+          <div id="shots-list"></div>
+        </div>
+      </div>
+
+      <!-- ── GUIDE ── -->
+      <div class="view" id="view-guide">
+        <div class="view-inner">
+          <div class="page-header">
+            <div class="display" style="font-size:22px;margin-bottom:4px">Guide</div>
+            <div class="gold-line"></div>
+          </div>
+          <div id="guide-content"></div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS ── -->
+      <div class="view" id="view-settings">
+        <div class="view-inner">
+          <div class="page-header">
+            <div class="display" style="font-size:22px;margin-bottom:4px">Settings</div>
+            <div class="gold-line"></div>
+          </div>
+          <div class="form-panel">
+            <div class="form-group">
+              <label class="label">Notion Integration Token</label>
+              <div class="token-input-wrap">
+                <input type="password" id="settings-token" placeholder="ntn_xxxxxxxxxxxx"/>
+                <button class="token-toggle" onclick="toggleVis('settings-token',this)">show</button>
+              </div>
             </div>
-            <div class="form-group"><label class="label">Default dose (g)</label><input type="number" id="b-dose" placeholder="21.5" step="0.1"/></div>
-            <div class="form-group"><label class="label">Default grind</label><input type="text" id="b-grind" placeholder="3rd click from 0"/></div>
+            <div class="form-group">
+              <label class="label">Shot Log Database ID</label>
+              <input type="text" id="settings-shot-db"/>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px">From Notion URL after notion.so/</div>
+            </div>
+            <div class="form-group">
+              <label class="label">Bean Database ID</label>
+              <input type="text" id="settings-bean-db"/>
+            </div>
+            <button class="btn btn-primary btn-margin" onclick="saveSettings()">Save Settings</button>
+            <button class="btn btn-ghost" onclick="clearToken()">Disconnect & Reset</button>
           </div>
-          <div class="form-group"><label class="label">Roast level</label><div class="pills" id="roast-pills-bean"></div></div>
-          <div class="form-group"><label class="label">Flavor tags</label><div class="pills" id="flavor-pills"></div></div>
-          <button class="btn btn-primary" onclick="submitBean()" id="save-bean-btn">Save Bean</button>
         </div>
       </div>
-      <div id="bean-list"></div>
-    </div>
 
-    <!-- SETTINGS -->
-    <div id="view-settings" style="display:none">
-      <div class="form-panel">
-        <div class="form-group">
-          <label class="label" style="margin-bottom:8px;font-size:11px;color:var(--text2)">Notion Integration Token</label>
-          <div class="token-input-wrap">
-            <input type="password" id="settings-token" placeholder="ntn_xxxxxxxxxxxxxxxxxxxx"/>
-            <button class="token-toggle" onclick="toggleSettingsTokenVis()">show</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="label" style="margin-bottom:8px;font-size:11px;color:var(--text2)">Shot Log Database ID</label>
-          <input type="text" id="settings-shot-db" placeholder="e.g. bfa703c1..."/>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px">Found in the Notion database URL after notion.so/</div>
-        </div>
-        <div class="form-group">
-          <label class="label" style="margin-bottom:8px;font-size:11px;color:var(--text2)">Bean Database ID</label>
-          <input type="text" id="settings-bean-db" placeholder="e.g. a4fb1996..."/>
-        </div>
-        <button class="btn btn-primary" style="margin-bottom:10px" onclick="saveSettings()">Save Settings</button>
-        <button class="btn btn-cancel" onclick="clearToken()">Disconnect & Reset</button>
-      </div>
-    </div>
+    </div><!-- end view-container -->
+
+    <!-- ── BOTTOM NAV ── -->
+    <nav id="bottom-nav">
+      <button class="nav-btn active" id="nav-home" onclick="navTo('home')">
+        <span class="nav-icon">⌂</span><span>Beans</span>
+      </button>
+      <button class="nav-btn" id="nav-shots" onclick="navTo('shots')">
+        <span class="nav-icon">≡</span><span>Shots</span>
+      </button>
+      <button class="nav-btn" id="nav-guide" onclick="navTo('guide')">
+        <span class="nav-icon">◎</span><span>Guide</span>
+      </button>
+      <button class="nav-btn" id="nav-settings" onclick="navTo('settings')">
+        <span class="nav-icon">⚙</span><span>Settings</span>
+      </button>
+    </nav>
   </div>
-</div>
+
+</div><!-- end app -->
 
 <script>
-// ── Constants ──────────────────────────────────────────
+// ══ CONFIG ══════════════════════════════════════════════
+const PROXY     = "https://script.google.com/macros/s/AKfycbyMcPag_A4QUA8br4zHPTlznV57gporKyQtQA8-PjNSAZOcm7aT3MBBVVbwpKGKboud/exec";
+const D_SHOT_DB = "04d4afddfab64e84ab5d4f8ed212ea26";
+const D_BEAN_DB = "7559b26c96024b0791b35fabf5c50ca3";
 const ROAST_LEVELS   = ["Light","Medium-Light","Medium","Medium-Dark","Dark"];
 const TASTE_PROFILES = ["Sour","Slightly Sour","Balanced","Slightly Bitter","Bitter"];
 const FLAVOR_TAGS    = ["Floral","Fruity","Citrus","Nutty","Chocolatey","Caramel","Earthy","Spicy","Berry","Stone Fruit"];
-const NOTION_PROXY   = "https://api.allorigins.win/raw?url=";
 
-// Default DB IDs (pre-filled from setup — user can override in settings)
-const DEFAULT_SHOT_DB = "04d4afddfab64e84ab5d4f8ed212ea26";
-const DEFAULT_BEAN_DB = "7559b26c96024b0791b35fabf5c50ca3";
+// ══ STATE ════════════════════════════════════════════════
+let logs=[], beans=[], currentView="home", currentBeanId=null;
+let filterTaste="All", filterBean="All";
+let shotFormOpen=false, beanFormOpen=false, editingBeanId=null;
+let shotState={roast:"Medium",taste:"Balanced"};
+let beanState={roast:"Medium",flavorTags:[]};
+let prefilledBeanName="";
 
-// ── Storage ────────────────────────────────────────────
-function getToken(){ return localStorage.getItem("notion_token") || ""; }
-function getShotDB(){ return localStorage.getItem("shot_db_id") || DEFAULT_SHOT_DB; }
-function getBeanDB(){ return localStorage.getItem("bean_db_id") || DEFAULT_BEAN_DB; }
+// ══ STORAGE ══════════════════════════════════════════════
+const getToken  = ()=>localStorage.getItem("notion_token")||"";
+const getShotDB = ()=>localStorage.getItem("shot_db_id")||D_SHOT_DB;
+const getBeanDB = ()=>localStorage.getItem("bean_db_id")||D_BEAN_DB;
 
-// ── State ──────────────────────────────────────────────
-let logs = [], beans = [];
-let shotState = {roast:"Medium", taste:"Balanced"};
-let beanState = {roast:"Medium", flavorTags:[]};
-let filterTaste = "All", filterBean = "All";
-let shotFormOpen = false, beanFormOpen = false;
-
-// ── Notion API ─────────────────────────────────────────
-async function notionFetch(endpoint, method="GET", body=null) {
-  const token = getToken();
-  const PROXY = "https://script.google.com/macros/s/AKfycbyMcPag_A4QUA8br4zHPTlznV57gporKyQtQA8-PjNSAZOcm7aT3MBBVVbwpKGKboud/exec";
-  const res = await fetch(PROXY, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({
-      endpoint,
-      method,
-      token,
-      body: body || null
-    })
+// ══ NOTION API ═══════════════════════════════════════════
+async function notionFetch(endpoint,method="GET",body=null){
+  const res=await fetch(PROXY,{
+    method:"POST",headers:{"Content-Type":"text/plain"},
+    body:JSON.stringify({endpoint,method,token:getToken(),body:body||null})
   });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.message || `Error ${res.status}`);
-  }
-  const data = await res.json().catch(()=>({}));
-  if (data.code && data.message) throw new Error(data.message);
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||`Error ${res.status}`);}
+  const data=await res.json().catch(()=>({}));
+  if(data.code&&data.message)throw new Error(data.message);
   return data;
 }
-
-async function queryDatabase(dbId, filter=null, sorts=null) {
-  const body = {};
-  if (filter) body.filter = filter;
-  if (sorts) body.sorts = sorts;
-  body.page_size = 100;
-  const data = await notionFetch(`/databases/${dbId}/query`, "POST", body);
-  return data.results || [];
+async function queryDB(dbId,sorts=null){
+  const b={page_size:100};
+  if(sorts)b.sorts=sorts;
+  const d=await notionFetch(`/databases/${dbId}/query`,"POST",b);
+  return d.results||[];
+}
+async function createPage(dbId,props){
+  return notionFetch("/pages","POST",{parent:{database_id:dbId},properties:props});
+}
+async function updatePage(pageId,props){
+  return notionFetch(`/pages/${pageId}`,"PATCH",{properties:props});
 }
 
-async function createPage(dbId, properties) {
-  return notionFetch("/pages", "POST", {
-    parent: { database_id: dbId },
-    properties
+// Prop helpers
+const titleProp=t=>({title:[{text:{content:t||""}}]});
+const richText=t=>({rich_text:[{text:{content:t||""}}]});
+const selProp=n=>n?{select:{name:n}}:{select:null};
+const multiSel=ns=>({multi_select:(ns||[]).map(n=>({name:n}))});
+const numProp=n=>({number:n||null});
+const dateProp=d=>d?{date:{start:d}}:{date:null};
+const parseRT=p=>p?.rich_text?.[0]?.plain_text||"";
+const parseTitle=p=>p?.title?.[0]?.plain_text||"";
+const parseSel=p=>p?.select?.name||"";
+const parseMS=p=>(p?.multi_select||[]).map(o=>o.name);
+const parseNum=p=>p?.number??0;
+const parseDate=p=>p?.date?.start||"";
+
+// Map results
+function mapShot(pg){const p=pg.properties||{};return{
+  id:pg.id,date:parseDate(p["Date"]),bean:parseRT(p["Bean"]),roast:parseSel(p["Roast"]),
+  doseG:parseNum(p["Dose (g)"]),yieldG:parseNum(p["Yield (g)"]),timeS:parseNum(p["Time (s)"]),
+  grindSetting:parseRT(p["Grind Setting"]),taste:parseSel(p["Taste"]),
+  flowRate:parseNum(p["Flow Rate (g/s)"]),ratio:parseRT(p["Ratio"]),notes:parseRT(p["Notes"])
+};}
+function mapBean(pg){const p=pg.properties||{};return{
+  id:pg.id,name:parseTitle(p["Bean Name"]),origin:parseRT(p["Origin"]),
+  roast:parseSel(p["Roast"]),process:parseSel(p["Process"]),
+  flavorTags:parseMS(p["Flavor Tags"]),
+  defaultDose:parseNum(p["Default Dose (g)"]),defaultGrind:parseRT(p["Default Grind"]),
+  roastDate:parseDate(p["Roast Date"]),notes:parseRT(p["Notes"])
+};}
+
+// ══ LOAD DATA ════════════════════════════════════════════
+async function loadAll(){
+  showLoading("bean-grid-container","Loading...");
+  try{
+    const [shotResults,beanResults]=await Promise.all([
+      queryDB(getShotDB(),[{property:"Date",direction:"descending"}]),
+      queryDB(getBeanDB(),[{property:"Bean Name",direction:"ascending"}])
+    ]);
+    logs=shotResults.map(mapShot);
+    beans=beanResults.map(mapBean);
+    renderAll();
+  }catch(e){showError("Could not load data: "+e.message);}
+}
+async function reloadShots(){
+  try{
+    const r=await queryDB(getShotDB(),[{property:"Date",direction:"descending"}]);
+    logs=r.map(mapShot);
+  }catch(e){showError("Could not reload shots: "+e.message);}
+}
+async function reloadBeans(){
+  try{
+    const r=await queryDB(getBeanDB(),[{property:"Bean Name",direction:"ascending"}]);
+    beans=r.map(mapBean);
+  }catch(e){showError("Could not reload beans: "+e.message);}
+}
+
+// ══ HELPERS ══════════════════════════════════════════════
+const today=()=>new Date().toISOString().split("T")[0];
+const tasteColor=t=>({Sour:"#ef4444","Slightly Sour":"#f97316",Balanced:"#22c55e","Slightly Bitter":"#f97316",Bitter:"#ef4444"}[t]||"#94a3b8");
+const flowColor=v=>v>=1&&v<=2?"#22c55e":v<1?"#ef4444":"#f97316";
+const tagHTML=(l,c="#475569")=>`<span class="tag" style="border:1px solid ${c}44;background:${c}18;color:${c}">${l}</span>`;
+
+function flowBarHTML(value,ghostValue=null){
+  const pct=v=>Math.min(100,Math.max(0,((v-0.5)/2.5)*100));
+  const color=flowColor(value);
+  const currentPct=pct(value);
+  let ghostHTML="";
+  if(ghostValue!=null&&Math.abs(ghostValue-value)>0.05){
+    const gPct=pct(ghostValue);
+    ghostHTML=`<div class="flow-marker-ghost" style="left:${gPct}%"></div>`;
+  }
+  let legendHTML="";
+  if(ghostValue!=null&&Math.abs(ghostValue-value)>0.05){
+    legendHTML=`<div class="flow-legend">
+      <div class="flow-legend-item"><div class="flow-legend-dot" style="background:${color}"></div>This shot</div>
+      <div class="flow-legend-item"><div class="flow-legend-ghost"></div>Best shot</div>
+    </div>`;
+  }
+  return `<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>3 g/s</span></div>
+<div class="flow-bar-track" style="overflow:visible">
+  <div class="flow-bar-fill" style="width:${currentPct}%;background:${color}"></div>
+  ${ghostHTML}
+</div>${legendHTML}`;
+}
+
+function deltaHTML(current,best,unit="",invertLogic=false){
+  if(best==null||best===0)return"";
+  const diff=parseFloat((current-best).toFixed(2));
+  if(Math.abs(diff)<0.05)return`<div class="delta delta-zero">✓</div>`;
+  const isOver=diff>0;
+  // For yield/time: being over is bad (sour risk), so delta-pos styling = warning
+  const cls=isOver?"delta-pos":"delta-neg";
+  const sign=isOver?"+":"";
+  return`<div class="delta ${cls}">${sign}${diff}${unit}</div>`;
+}
+
+function getBestShot(beanName){
+  const beanLogs=logs.filter(l=>l.bean===beanName&&l.taste==="Balanced");
+  if(!beanLogs.length)return null;
+  // Most recent balanced shot
+  return beanLogs[0];
+}
+
+function getBeanStatus(beanName){
+  const beanLogs=logs.filter(l=>l.bean===beanName);
+  if(!beanLogs.length)return"new";
+  const hasBest=beanLogs.some(l=>l.taste==="Balanced");
+  if(hasBest){
+    const last3=beanLogs.slice(0,3);
+    const allBad=last3.every(l=>l.taste!=="Balanced");
+    if(allBad&&last3.length>=2)return"attention";
+    return"dialled";
+  }
+  return"dialling";
+}
+
+function getStatusColor(status){
+  return{dialled:"#22c55e",dialling:"#f97316",new:"#475569",attention:"#ef4444"}[status]||"#475569";
+}
+function getStatusLabel(status){
+  return{dialled:"Dialled In",dialling:"Dialling In",new:"New",attention:"Needs Attention"}[status]||"New";
+}
+
+// ══ RECOMMENDATIONS ══════════════════════════════════════
+function getRecommendations(beanName){
+  const beanLogs=logs.filter(l=>l.bean===beanName);
+  if(!beanLogs.length)return["Pull your first shot and log it to start building recommendations."];
+  const bestShot=getBestShot(beanName);
+  const lastShot=beanLogs[0];
+  const last3=beanLogs.slice(0,3);
+  const tips=[];
+
+  if(!bestShot){
+    const allSour=last3.every(l=>l.taste.includes("Sour"));
+    const allBitter=last3.every(l=>l.taste.includes("Bitter"));
+    if(allSour){
+      tips.push(`All recent shots sour — try going 1 click finer on the grind`);
+      if(lastShot.yieldG>43)tips.push(`Your yield is running high (${lastShot.yieldG}g) — try stopping at ${(lastShot.yieldG-1.5).toFixed(0)}g to cut the sour tail`);
+      tips.push(`Check puck prep: even WDT distribution and level tamp help eliminate channelling`);
+    }else if(allBitter){
+      tips.push(`All recent shots bitter — go 1 click coarser on the grind`);
+      tips.push(`Or try letting the shot run 2–3g longer to see if sweetness develops`);
+    }else{
+      tips.push(`Mixed results — focus on one variable at a time`);
+      tips.push(`Nail your stop timing consistency before adjusting grind again`);
+    }
+    tips.push(`No balanced shot yet — keep going, you're dialling in`);
+  }else{
+    if(lastShot.taste==="Balanced"){
+      tips.push(`Dialled in! Stick with: ${bestShot.grindSetting} grind, stop at ${bestShot.yieldG}g`);
+      const stopEarly=(bestShot.yieldG-1.5).toFixed(0);
+      tips.push(`Stop the machine when scale shows ~${stopEarly}g — residual flow adds ~1.5g`);
+      if(beanLogs.filter(l=>l.taste==="Balanced").length>=3)tips.push(`Consistently balanced — this bean is well understood`);
+    }else if(lastShot.taste.includes("Sour")){
+      const yDiff=(lastShot.yieldG-bestShot.yieldG).toFixed(1);
+      const tDiff=(lastShot.timeS-bestShot.timeS);
+      if(parseFloat(yDiff)>0.5)tips.push(`Yield was ${yDiff}g over your sweet spot — stop ${yDiff}g earlier next time`);
+      else if(tDiff>3)tips.push(`Shot ran ${tDiff}s longer than your best — check grind or puck prep`);
+      else tips.push(`Very close to your best — focus on stop timing consistency`);
+      tips.push(`Reference: ${bestShot.grindSetting} grind, ${bestShot.yieldG}g in ${bestShot.timeS}s`);
+    }else if(lastShot.taste.includes("Bitter")){
+      tips.push(`More bitter than your best shot — stop ${(bestShot.yieldG+1).toFixed(0)}g or go 1 click coarser`);
+      tips.push(`Reference: ${bestShot.grindSetting} grind, ${bestShot.yieldG}g in ${bestShot.timeS}s`);
+    }
+  }
+  return tips;
+}
+
+// ══ NAVIGATION ═══════════════════════════════════════════
+function navTo(view,beanId=null){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  const el=document.getElementById("view-"+view);
+  if(el)el.classList.add("active");
+  const navEl=document.getElementById("nav-"+view);
+  if(navEl)navEl.classList.add("active");
+  else if(view==="bean"){document.getElementById("nav-home").classList.add("active");}
+  currentView=view;
+  document.getElementById("view-container").scrollTop=0;
+  if(view==="bean"&&beanId){currentBeanId=beanId;renderBeanDetail();}
+  else if(view==="home")renderHome();
+  else if(view==="shots"){renderShotsView();}
+  else if(view==="guide")renderGuide();
+  else if(view==="settings")renderSettings();
+}
+
+// ══ RENDER ALL ════════════════════════════════════════════
+function renderAll(){
+  renderHome();
+  renderShotsView();
+  renderGuide();
+}
+
+// ══ HOME ══════════════════════════════════════════════════
+function renderHome(){
+  // Stats
+  const statsEl=document.getElementById("home-stats");
+  if(logs.length){
+    const valid=logs.filter(l=>l.timeS>0&&l.yieldG>0);
+    const avg=valid.length?(valid.reduce((a,l)=>a+l.yieldG/l.timeS,0)/valid.length).toFixed(2):"—";
+    statsEl.innerHTML=`<div class="stats">
+      <div class="stat"><div class="stat-value">${logs.length}</div><div class="stat-label">Shots</div></div>
+      <div class="stat"><div class="stat-value">${avg}</div><div class="stat-label">Avg g/s</div></div>
+      <div class="stat"><div class="stat-value">${logs.filter(l=>l.taste==="Balanced").length}</div><div class="stat-label">Balanced</div></div>
+    </div>`;
+  }else statsEl.innerHTML="";
+
+  // Global best
+  const bestEl=document.getElementById("home-best-banner");
+  const globalBest=logs.find(l=>l.taste==="Balanced");
+  if(globalBest){
+    bestEl.innerHTML=`<div class="best-banner">
+      <div class="best-banner-label">Last best shot</div>
+      ✦ ${globalBest.bean||"Unknown"} · ${globalBest.grindSetting||"—"} · ${globalBest.doseG}g → ${globalBest.yieldG}g in ${globalBest.timeS}s
+    </div>`;
+  }else bestEl.innerHTML="";
+
+  // Bean grid
+  const gridEl=document.getElementById("bean-grid-container");
+  let html=`<div class="bean-grid">`;
+  beans.forEach(bean=>{
+    const status=getBeanStatus(bean.name);
+    const statusColor=getStatusColor(status);
+    const beanLogs=logs.filter(l=>l.bean===bean.name);
+    const lastShot=beanLogs[0];
+    const tasteC=lastShot?tasteColor(lastShot.taste):"#475569";
+    const tagsHTML=bean.flavorTags.slice(0,2).map(t=>tagHTML(t,"#c8963e")).join(" ");
+    html+=`<div class="bean-card status-${status}" onclick="navTo('bean','${bean.id}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+        <div class="bean-status-dot" style="background:${statusColor};margin-top:3px"></div>
+        <span style="font-size:9px;color:${statusColor};text-transform:uppercase;letter-spacing:.06em">${getStatusLabel(status)}</span>
+      </div>
+      <div class="bean-card-name">${bean.name}</div>
+      <div class="bean-card-roast">${bean.roast||"—"}${bean.origin?" · "+bean.origin:""}</div>
+      ${tagsHTML?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${tagsHTML}</div>`:""}
+      <div class="bean-card-footer">
+        <span class="bean-card-shots">${beanLogs.length} shot${beanLogs.length!==1?"s":""}</span>
+        ${lastShot?`<span class="bean-card-taste" style="background:${tasteC}22;color:${tasteC};border:1px solid ${tasteC}44">${lastShot.taste}</span>`:""}
+      </div>
+    </div>`;
   });
+  // Add bean card
+  html+=`<div class="bean-add-card" onclick="navTo('home');setTimeout(()=>showBeanForm(),100)">
+    <div style="font-size:28px;color:var(--muted)">+</div>
+    <span>Add Bean</span>
+  </div>`;
+  html+=`</div>`;
+
+  // Add bean form toggle
+  html+=`<button class="btn btn-primary btn-margin" id="toggle-bean-form-home" onclick="toggleBeanFormHome()" style="margin-top:4px">+ Add Bean to Database</button>`;
+  html+=`<div id="bean-form-home" style="display:none"></div>`;
+
+  gridEl.innerHTML=html;
+  renderBeanFormHome();
 }
 
-// ── Property helpers ───────────────────────────────────
-function titleProp(text){ return { title: [{ text: { content: text || "" } }] }; }
-function richText(text){ return { rich_text: [{ text: { content: text || "" } }] }; }
-function selectProp(name){ return name ? { select: { name } } : { select: null }; }
-function multiSelect(names){ return { multi_select: (names||[]).map(n=>({name:n})) }; }
-function numberProp(n){ return { number: n || null }; }
-function dateProp(d){ return d ? { date: { start: d } } : { date: null }; }
+// ══ BEAN DETAIL ═══════════════════════════════════════════
+function renderBeanDetail(){
+  const bean=beans.find(b=>b.id===currentBeanId);
+  if(!bean){document.getElementById("bean-detail-content").innerHTML=`<div class="empty">Bean not found.</div>`;return;}
+  const beanLogs=logs.filter(l=>l.bean===bean.name);
+  const bestShot=getBestShot(bean.name);
+  const status=getBeanStatus(bean.name);
+  const statusColor=getStatusColor(status);
+  const recs=getRecommendations(bean.name);
+  const balancedCount=beanLogs.filter(l=>l.taste==="Balanced").length;
+  const dialPct=beanLogs.length?Math.min(100,Math.round((balancedCount/Math.max(beanLogs.length,1))*100)):0;
 
-function parseRichText(prop){ return prop?.rich_text?.[0]?.plain_text || ""; }
-function parseTitle(prop){ return prop?.title?.[0]?.plain_text || ""; }
-function parseSelect(prop){ return prop?.select?.name || ""; }
-function parseMultiSelect(prop){ return (prop?.multi_select||[]).map(o=>o.name); }
-function parseNumber(prop){ return prop?.number ?? 0; }
-function parseDate(prop){ return prop?.date?.start || ""; }
+  let html="";
 
-// ── Map API results ────────────────────────────────────
-function mapShot(page) {
-  const p = page.properties || {};
-  return {
-    id: page.id,
-    date: parseDate(p["Date"]),
-    bean: parseRichText(p["Bean"]),
-    roast: parseSelect(p["Roast"]),
-    doseG: parseNumber(p["Dose (g)"]),
-    yieldG: parseNumber(p["Yield (g)"]),
-    timeS: parseNumber(p["Time (s)"]),
-    grindSetting: parseRichText(p["Grind Setting"]),
-    taste: parseSelect(p["Taste"]),
-    flowRate: parseNumber(p["Flow Rate (g/s)"]),
-    ratio: parseRichText(p["Ratio"]),
-    notes: parseRichText(p["Notes"]),
-  };
+  // Bean header
+  html+=`<div class="bean-detail-header">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div class="bean-status-dot" style="background:${statusColor};width:10px;height:10px"></div>
+      <span style="font-size:10px;color:${statusColor};text-transform:uppercase;letter-spacing:.08em">${getStatusLabel(status)}</span>
+    </div>
+    <div class="bean-detail-name">${bean.name}</div>
+    <div class="bean-detail-meta">${[bean.roast,bean.origin,bean.process].filter(Boolean).join(" · ")}</div>
+    ${bean.flavorTags.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:""}
+    <div class="dial-progress">
+      <div class="dial-bar"><div class="dial-bar-fill" style="width:${dialPct}%"></div></div>
+      <span style="font-size:10px;color:var(--muted);white-space:nowrap">${balancedCount}/${beanLogs.length} balanced</span>
+    </div>
+    ${bean.defaultDose||bean.defaultGrind?`<div style="font-size:11px;color:var(--muted)">Defaults: ${[bean.defaultDose?bean.defaultDose+"g dose":null,bean.defaultGrind?bean.defaultGrind+" grind":null].filter(Boolean).join(" · ")}</div>`:""}
+  </div>`;
+
+  // Stop target
+  if(bestShot){
+    const stopAt=(bestShot.yieldG-1.5).toFixed(0);
+    html+=`<div class="stop-target">⏱ Stop machine at <strong style="color:var(--gold);margin-left:4px">~${stopAt}g</strong> on scale</div>`;
+  }
+
+  // Best shot reference card
+  if(bestShot){
+    html+=`<div class="bean-reference-card">
+      <div class="bean-reference-label">⭐ Best Shot Reference <span style="color:var(--muted);font-size:9px">${bestShot.date}</span></div>
+      <div class="data-grid">
+        ${[["Dose",bestShot.doseG+"g"],["Yield",bestShot.yieldG+"g"],["Time",bestShot.timeS+"s"],["Ratio",bestShot.ratio||"—"]].map(([l,v])=>`
+        <div class="data-cell"><div class="data-cell-label">${l}</div><div class="data-cell-value">${v}</div></div>`).join("")}
+      </div>
+      <div class="flow-box">${flowBarHTML(bestShot.flowRate||bestShot.yieldG/bestShot.timeS)}</div>
+      <div class="info-row">
+        <div class="info-cell"><div class="label">Grind</div><div style="font-size:13px;color:#e2e8f0">${bestShot.grindSetting||"—"}</div></div>
+        <div class="info-cell"><div class="label">Roast</div><div style="font-size:13px;color:#e2e8f0">${bestShot.roast||"—"}</div></div>
+      </div>
+    </div>`;
+  }
+
+  // Recommendations
+  html+=`<div class="rec-panel">
+    <div class="rec-title">◈ Recommendations</div>
+    ${recs.map(r=>`<div class="rec-item"><div class="rec-dot"></div><div>${r}</div></div>`).join("")}
+  </div>`;
+
+  // Log shot button
+  html+=`<button class="btn btn-primary btn-margin" id="toggle-bean-shot-btn" onclick="toggleBeanShotForm('${bean.name}')">+ Log a Shot</button>`;
+  html+=`<div id="bean-shot-form-container" style="display:none"></div>`;
+
+  // Shot history for this bean
+  html+=`<div class="section-label">${beanLogs.length} Shot${beanLogs.length!==1?"s":""} · ${bean.name}</div>`;
+  if(!beanLogs.length){
+    html+=`<div class="empty">No shots yet for this bean.<br>Pull one and log it above.</div>`;
+  }else{
+    html+=beanLogs.map((shot,i)=>renderShotCard(shot,i,bestShot)).join("");
+  }
+
+  document.getElementById("bean-detail-content").innerHTML=html;
+  renderBeanShotForm(bean.name);
 }
 
-function mapBean(page) {
-  const p = page.properties || {};
-  return {
-    id: page.id,
-    name: parseTitle(p["Bean Name"]),
-    origin: parseRichText(p["Origin"]),
-    roast: parseSelect(p["Roast"]),
-    process: parseSelect(p["Process"]),
-    flavorTags: parseMultiSelect(p["Flavor Tags"]),
-    defaultDose: parseNumber(p["Default Dose (g)"]),
-    defaultGrind: parseRichText(p["Default Grind"]),
-    notes: parseRichText(p["Notes"]),
-  };
+// ══ SHOT CARD ════════════════════════════════════════════
+function renderShotCard(shot,idx,bestShot=null){
+  const flowRate=shot.flowRate||(shot.timeS>0?shot.yieldG/shot.timeS:0);
+  const ghostFlow=bestShot?( bestShot.flowRate||(bestShot.timeS>0?bestShot.yieldG/bestShot.timeS:0)):null;
+  const color=tasteColor(shot.taste);
+  const isCurrentBest=bestShot&&shot.id===bestShot.id;
+  const bean=beans.find(b=>b.name===shot.bean);
+  const tags=bean?.flavorTags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:"";
+
+  // Deltas vs best (only show when not the best shot itself)
+  const showDeltas=bestShot&&!isCurrentBest;
+  const yDelta=showDeltas?deltaHTML(shot.yieldG,bestShot.yieldG,"g"):"";
+  const tDelta=showDeltas?deltaHTML(shot.timeS,bestShot.timeS,"s"):"";
+  const rDelta=showDeltas?deltaHTML(parseFloat(shot.ratio?.replace("1:","")||0),parseFloat(bestShot.ratio?.replace("1:","")||0),""):"";
+
+  // Grind match
+  let grindMatchHTML="";
+  if(showDeltas&&shot.grindSetting&&bestShot.grindSetting){
+    grindMatchHTML=shot.grindSetting===bestShot.grindSetting
+      ?`<div class="grind-match grind-match-yes">✓ matches best</div>`
+      :`<div class="grind-match grind-match-no">≠ best: ${bestShot.grindSetting}</div>`;
+  }
+
+  return`<div class="card" style="border-left:3px solid ${color}${isCurrentBest?';border-color:var(--gold);box-shadow:0 0 0 1px var(--gold-dim)':""}">
+    <div class="shot-header-row">
+      <div>
+        <div class="caption">Shot #${idx+1}${shot.date?" · "+shot.date:""}${isCurrentBest?" · ⭐":""}</div>
+        <div style="font-size:14px;color:#e2e8f0;margin-top:2px;font-weight:500">${shot.bean||"—"}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:1px">${shot.roast}${bean?.origin?" · "+bean.origin:""}</div>
+      </div>
+      <span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${shot.taste||"—"}</span>
+    </div>
+    ${tags}
+    <div class="data-grid">
+      <div class="data-cell"><div class="data-cell-label">Dose</div><div class="data-cell-value">${shot.doseG}g</div></div>
+      <div class="data-cell"><div class="data-cell-label">Yield</div><div class="data-cell-value">${shot.yieldG}g</div>${yDelta}</div>
+      <div class="data-cell"><div class="data-cell-label">Time</div><div class="data-cell-value">${shot.timeS}s</div>${tDelta}</div>
+      <div class="data-cell"><div class="data-cell-label">Ratio</div><div class="data-cell-value">${shot.ratio||"—"}</div>${rDelta}</div>
+    </div>
+    ${flowRate>0?`<div class="flow-box">${flowBarHTML(flowRate,showDeltas?ghostFlow:null)}</div>`:""}
+    <div class="info-row">
+      <div class="info-cell"><div class="label">Grind</div><div style="font-size:13px;color:#e2e8f0">${shot.grindSetting||"—"}</div>${grindMatchHTML}</div>
+      <div class="info-cell"><div class="label">Roast</div><div style="font-size:13px;color:#e2e8f0">${shot.roast||"—"}</div></div>
+    </div>
+    ${shot.notes?`<div class="note-box">${shot.notes}</div>`:""}
+  </div>`;
 }
 
-// ── Load data ──────────────────────────────────────────
-async function loadShots() {
-  showLoading("shot-list", "Loading shots from Notion...");
-  try {
-    const results = await queryDatabase(getShotDB(), null, [{ property:"Date", direction:"descending" }]);
-    logs = results.map(mapShot);
-    renderShotsTab();
-  } catch(e) {
-    showError("Could not load shots: " + e.message);
-    document.getElementById("shot-list").innerHTML = "";
+// ══ SHOTS VIEW ════════════════════════════════════════════
+function renderShotsView(){
+  const uniqueBeans=[...new Set(logs.map(l=>l.bean).filter(Boolean))];
+  let fHtml=`<div class="filter-row">`;
+  if(uniqueBeans.length>1){
+    ["All",...uniqueBeans].forEach(f=>{
+      fHtml+=`<button class="pill${filterBean===f?" active-gold-outline":""}" onclick="filterBean='${f}';renderShotsView()">${f}</button>`;
+    });
+  }
+  fHtml+=`</div><div class="filter-row">`;
+  ["All",...TASTE_PROFILES].forEach(f=>{
+    fHtml+=`<button class="pill${filterTaste===f?" active-gold-outline":""}" onclick="filterTaste='${f}';renderShotsView()">${f}</button>`;
+  });
+  fHtml+=`</div>`;
+  document.getElementById("shots-filters").innerHTML=fHtml;
+
+  const filtered=logs.filter(l=>(filterTaste==="All"||l.taste===filterTaste)&&(filterBean==="All"||l.bean===filterBean));
+  document.getElementById("shots-list").innerHTML=filtered.length
+    ?filtered.map((s,i)=>renderShotCard(s,i)).join("")
+    :`<div class="empty">${!logs.length?"No shots yet. Log your first shot from the Beans tab.":"No shots match these filters."}</div>`;
+}
+
+// ══ LOG SHOT FORM (bean detail) ════════════════════════════
+function toggleBeanShotForm(beanName){
+  shotFormOpen=!shotFormOpen;
+  const container=document.getElementById("bean-shot-form-container");
+  const btn=document.getElementById("toggle-bean-shot-btn");
+  if(shotFormOpen){
+    container.style.display="";
+    btn.textContent="✕  Cancel";
+    btn.className="btn btn-cancel btn-margin";
+    prefilledBeanName=beanName;
+    const bean=beans.find(b=>b.name===beanName);
+    shotState={roast:bean?.roast||"Medium",taste:"Balanced"};
+    renderBeanShotForm(beanName);
+  }else{
+    container.style.display="none";
+    btn.textContent="+ Log a Shot";
+    btn.className="btn btn-primary btn-margin";
   }
 }
 
-async function loadBeans() {
-  showLoading("bean-list", "Loading beans from Notion...");
-  try {
-    const results = await queryDatabase(getBeanDB(), null, [{ property:"Bean Name", direction:"ascending" }]);
-    beans = results.map(mapBean);
-    renderBeansTab();
-    renderBeanDropdown();
-  } catch(e) {
-    showError("Could not load beans: " + e.message);
-    document.getElementById("bean-list").innerHTML = "";
-  }
+function renderBeanShotForm(beanName){
+  const container=document.getElementById("bean-shot-form-container");
+  if(!container||!shotFormOpen)return;
+  const bean=beans.find(b=>b.name===beanName);
+  const bestShot=getBestShot(beanName);
+  container.innerHTML=`<div class="form-panel">
+    ${bestShot?`<div style="background:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--gold)">
+      ⏱ Stop at ~${(bestShot.yieldG-1.5).toFixed(0)}g on scale for ${beanName}
+    </div>`:""}
+    <div class="form-group">
+      <label class="label">Bean</label>
+      <input type="text" id="fsb-beans" value="${beanName}" style="background:var(--surface);color:var(--muted)" readonly/>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="label">Date</label><input type="date" id="fsb-date" value="${today()}"/></div>
+      <div class="form-group"><label class="label">Dose (g)</label><input type="number" id="fsb-dose" value="${bean?.defaultDose||21.5}" step="0.1"/></div>
+      <div class="form-group"><label class="label">Yield (g)</label><input type="number" id="fsb-yield" placeholder="${bestShot?bestShot.yieldG:43}" step="0.1" oninput="updateFlowPreviewBean()"/></div>
+      <div class="form-group"><label class="label">Time (s)</label><input type="number" id="fsb-time" placeholder="${bestShot?bestShot.timeS:30}" step="1" oninput="updateFlowPreviewBean()"/></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="label">Grind setting</label>
+        <input type="text" id="fsb-grind" value="${bean?.defaultGrind||""}" placeholder="e.g. 3rd click from 0"/>
+        ${bestShot?`<div class="prefill-notice">Best shot was: ${bestShot.grindSetting}</div>`:""}
+      </div>
+    </div>
+    <div class="form-group"><label class="label">Roast level</label>
+      <div class="pills" id="fsb-roast-pills"></div>
+    </div>
+    <div class="form-group"><label class="label">Taste</label>
+      <div class="pills" id="fsb-taste-pills"></div>
+    </div>
+    <div class="form-group"><label class="label">Notes</label>
+      <textarea id="fsb-notes" rows="2" placeholder="Puck prep, observations..."></textarea>
+    </div>
+    <div class="preview-box" id="fsb-flow-preview" style="display:none">
+      <label class="label">Flow rate preview</label>
+      <div id="fsb-flow-bar"></div>
+    </div>
+    <button class="btn btn-primary" id="fsb-save-btn" onclick="submitBeanShot('${beanName}')">Save Shot</button>
+  </div>`;
+  renderPills("fsb-roast-pills",ROAST_LEVELS,shotState.roast,v=>{shotState.roast=v;renderPills("fsb-roast-pills",ROAST_LEVELS,shotState.roast,null,"gold");},"gold");
+  renderTastePills("fsb-taste-pills");
 }
 
-// ── Save shot ──────────────────────────────────────────
-async function saveShot(shot) {
-  const btn = document.getElementById("save-shot-btn");
-  btn.textContent = "Saving to Notion..."; btn.disabled = true;
-  try {
-    await createPage(getShotDB(), {
-      "Shot": titleProp(`${shot.bean || "Unknown"} – ${shot.date}`),
-      "Date": dateProp(shot.date),
-      "Bean": richText(shot.bean),
-      "Roast": selectProp(shot.roast),
-      "Dose (g)": numberProp(shot.doseG),
-      "Yield (g)": numberProp(shot.yieldG),
-      "Time (s)": numberProp(shot.timeS),
-      "Grind Setting": richText(shot.grindSetting),
-      "Taste": selectProp(shot.taste),
-      "Flow Rate (g/s)": numberProp(parseFloat((shot.yieldG/shot.timeS).toFixed(3))),
-      "Ratio": richText(`1:${(shot.yieldG/shot.doseG).toFixed(2)}`),
-      "Notes": richText(shot.notes),
+function updateFlowPreviewBean(){
+  const y=parseFloat(document.getElementById("fsb-yield")?.value);
+  const t=parseFloat(document.getElementById("fsb-time")?.value);
+  const box=document.getElementById("fsb-flow-preview");
+  if(y&&t&&t>0){box.style.display="";document.getElementById("fsb-flow-bar").innerHTML=flowBarHTML(y/t);}
+  else if(box)box.style.display="none";
+}
+
+async function submitBeanShot(beanName){
+  const dose=parseFloat(document.getElementById("fsb-dose")?.value);
+  const yld=parseFloat(document.getElementById("fsb-yield")?.value);
+  const time=parseFloat(document.getElementById("fsb-time")?.value);
+  if(!dose||!yld||!time){showError("Please fill in dose, yield and time.");return;}
+  const btn=document.getElementById("fsb-save-btn");
+  btn.textContent="Saving...";btn.disabled=true;
+  try{
+    await createPage(getShotDB(),{
+      "Shot":titleProp(`${beanName} – ${document.getElementById("fsb-date")?.value||today()}`),
+      "Date":dateProp(document.getElementById("fsb-date")?.value||today()),
+      "Bean":richText(beanName),"Roast":selProp(shotState.roast),
+      "Dose (g)":numProp(dose),"Yield (g)":numProp(yld),"Time (s)":numProp(time),
+      "Grind Setting":richText(document.getElementById("fsb-grind")?.value||""),
+      "Taste":selProp(shotState.taste),
+      "Flow Rate (g/s)":numProp(parseFloat((yld/time).toFixed(3))),
+      "Ratio":richText(`1:${(yld/dose).toFixed(2)}`),
+      "Notes":richText(document.getElementById("fsb-notes")?.value||""),
     });
     showSuccess("Shot saved to Notion ✓");
-    return true;
-  } catch(e) {
-    showError("Failed to save: " + e.message);
-    return false;
-  } finally {
-    btn.textContent = "Save Shot"; btn.disabled = false;
+    await reloadShots();
+    shotFormOpen=false;
+    renderBeanDetail();
+  }catch(e){showError("Save failed: "+e.message);btn.textContent="Save Shot";btn.disabled=false;}
+}
+
+// ══ BEAN FORM (home) ════════════════════════════════════
+function toggleBeanFormHome(){
+  beanFormOpen=!beanFormOpen;
+  const container=document.getElementById("bean-form-home");
+  const btn=document.getElementById("toggle-bean-form-home");
+  if(beanFormOpen){
+    container.style.display="";
+    btn.textContent="✕  Cancel";
+    btn.className="btn btn-cancel btn-margin";
+    beanState={roast:"Medium",flavorTags:[]};
+    renderBeanFormHTML();
+  }else{
+    container.style.display="none";
+    btn.textContent="+ Add Bean to Database";
+    btn.className="btn btn-primary btn-margin";
   }
 }
 
-// ── Save bean ──────────────────────────────────────────
-async function saveBean(bean) {
-  const btn = document.getElementById("save-bean-btn");
-  btn.textContent = "Saving..."; btn.disabled = true;
-  try {
-    await createPage(getBeanDB(), {
-      "Bean Name": titleProp(bean.name),
-      "Origin": richText(bean.origin),
-      "Roast": selectProp(bean.roast),
-      "Process": selectProp(bean.process),
-      "Flavor Tags": multiSelect(bean.flavorTags),
-      "Default Dose (g)": numberProp(parseFloat(bean.defaultDose)||null),
-      "Default Grind": richText(bean.defaultGrind),
-      "Notes": richText(bean.notes||""),
+function showBeanForm(){
+  beanFormOpen=false;
+  toggleBeanFormHome();
+}
+
+function renderBeanFormHome(){
+  const container=document.getElementById("bean-form-home");
+  if(!container)return;
+}
+
+function renderBeanFormHTML(){
+  const container=document.getElementById("bean-form-home");
+  if(!container)return;
+  container.innerHTML=`<div class="form-panel">
+    <div class="form-group"><label class="label">Bean name *</label><input type="text" id="bf-name" placeholder="e.g. Ethiopia Yirgacheffe"/></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="label">Origin</label><input type="text" id="bf-origin" placeholder="Ethiopia"/></div>
+      <div class="form-group"><label class="label">Process</label>
+        <select id="bf-process"><option value="">— Select —</option><option>Washed</option><option>Natural</option><option>Honey</option><option>Anaerobic</option></select>
+      </div>
+      <div class="form-group"><label class="label">Default dose (g)</label><input type="number" id="bf-dose" placeholder="21.5" step="0.1"/></div>
+      <div class="form-group"><label class="label">Default grind</label><input type="text" id="bf-grind" placeholder="3rd click from 0"/></div>
+      <div class="form-group"><label class="label">Roast date</label><input type="date" id="bf-roast-date"/></div>
+    </div>
+    <div class="form-group"><label class="label">Roast level</label><div class="pills" id="bf-roast-pills"></div></div>
+    <div class="form-group"><label class="label">Flavor tags</label><div class="pills" id="bf-flavor-pills"></div></div>
+    <button class="btn btn-primary" id="bf-save-btn" onclick="submitBean()">Save Bean</button>
+  </div>`;
+  renderPills("bf-roast-pills",ROAST_LEVELS,beanState.roast,v=>{beanState.roast=v;renderPills("bf-roast-pills",ROAST_LEVELS,beanState.roast,null,"gold");},"gold");
+  renderFlavorPills();
+}
+
+function renderFlavorPills(){
+  const el=document.getElementById("bf-flavor-pills");if(!el)return;
+  el.innerHTML=FLAVOR_TAGS.map(t=>{
+    const active=beanState.flavorTags.includes(t);
+    return`<button class="pill${active?" active-gold-outline":""}" onclick="toggleFlavor('${t}')">${t}</button>`;
+  }).join("");
+}
+function toggleFlavor(t){
+  beanState.flavorTags=beanState.flavorTags.includes(t)?beanState.flavorTags.filter(x=>x!==t):[...beanState.flavorTags,t];
+  renderFlavorPills();
+}
+
+async function submitBean(){
+  const name=document.getElementById("bf-name")?.value.trim();
+  if(!name){showError("Bean name is required.");return;}
+  const btn=document.getElementById("bf-save-btn");
+  btn.textContent="Saving...";btn.disabled=true;
+  try{
+    await createPage(getBeanDB(),{
+      "Bean Name":titleProp(name),
+      "Origin":richText(document.getElementById("bf-origin")?.value||""),
+      "Roast":selProp(beanState.roast),
+      "Process":selProp(document.getElementById("bf-process")?.value||""),
+      "Flavor Tags":multiSel(beanState.flavorTags),
+      "Default Dose (g)":numProp(parseFloat(document.getElementById("bf-dose")?.value)||null),
+      "Default Grind":richText(document.getElementById("bf-grind")?.value||""),
+      "Notes":richText(""),
     });
     showSuccess("Bean saved to Notion ✓");
-    return true;
-  } catch(e) {
-    showError("Failed to save: " + e.message);
-    return false;
-  } finally {
-    btn.textContent = "Save Bean"; btn.disabled = false;
-  }
+    await reloadBeans();
+    beanFormOpen=true;toggleBeanFormHome();
+    renderHome();
+  }catch(e){showError("Save failed: "+e.message);btn.textContent="Save Bean";btn.disabled=false;}
 }
 
-// ── Setup & token ──────────────────────────────────────
-async function saveToken() {
-  const token = document.getElementById("setup-token").value.trim();
-  if (!token) { showSetupError("Please enter your integration token."); return; }
-  if (!token.startsWith("ntn_") && !token.startsWith("secret_")) {
-    showSetupError("Token should start with 'ntn_' or 'secret_'. Please check and try again.");
-    return;
-  }
-  localStorage.setItem("notion_token", token);
-  // Test connection
-  try {
-    await notionFetch(`/databases/${getShotDB()}`);
-    initApp();
-  } catch(e) {
-    localStorage.removeItem("notion_token");
-    showSetupError("Could not connect to Notion. Make sure you've shared the databases with your integration. Error: " + e.message);
-  }
+// ══ PILL RENDERERS ════════════════════════════════════════
+function renderPills(id,opts,active,onChange,cls="gold"){
+  const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=opts.map(o=>`<button class="pill${o===active?" active-"+cls:""}" onclick="(${onChange?onChange.toString():"()=>{}"}('${o}'))">${o}</button>`).join("");
+}
+function renderTastePills(containerId="fsb-taste-pills"){
+  const el=document.getElementById(containerId);if(!el)return;
+  el.innerHTML=TASTE_PROFILES.map(t=>{
+    const color=tasteColor(t);const active=shotState.taste===t;
+    return`<button class="pill" onclick="shotState.taste='${t}';renderTastePills('${containerId}')" style="${active?`background:${color};border-color:${color};color:#fff`:''}">${t}</button>`;
+  }).join("");
 }
 
-function clearToken() {
-  if (!confirm("Disconnect from Notion and reset the app?")) return;
+// ══ GUIDE PAGE ════════════════════════════════════════════
+function renderGuide(){
+  document.getElementById("guide-content").innerHTML=`
+  <div class="guide-section">
+    <div class="guide-section-title">Troubleshooting by Taste</div>
+    <div class="guide-card">
+      <div class="guide-card-title"><span style="color:var(--red)">●</span> Sour / Acidic</div>
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Under-extracted — coffee compounds haven't fully dissolved</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Go 1 click finer on the grind</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Stop 1–2g earlier to cut the sour tail end</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Check puck prep — channelling causes fast uneven extraction</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Nudge water temperature up slightly (try 93°C)</span></div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card-title"><span style="color:var(--orange)">●</span> Bitter / Harsh</div>
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Over-extracted — too many compounds dissolved</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Go 1 click coarser on the grind</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Or stop 1–2g earlier to shorten extraction</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Lower water temperature slightly (try 91°C)</span></div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card-title"><span style="color:var(--muted)">●</span> Flat / Watery / No Body</div>
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Dose may be too low — try adding 0.5g</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Beans may be stale — check days since roast</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Try reducing yield by 2–3g for more concentration</span></div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card-title"><span style="color:var(--blue)">●</span> Inconsistent Shot to Shot</div>
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Focus on stop timing first — aim to stop at the same yield every time</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Improve WDT distribution before adjusting grind</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Channelling causes wild variation — look for uneven puck after shot</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Try RDT: flick 1–2 drops of water on beans before grinding to reduce static</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">Flow Rate Explained</div>
+    <div class="guide-card">
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Target range: <strong style="color:var(--green)">1.0–2.0 g/s</strong> during main extraction</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Below 1 g/s = too slow (grind too fine / choked puck)</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Above 2 g/s = too fast (grind too coarse / channelling)</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Flow rate = yield ÷ time — a more precise metric than time alone</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Larger doses create more puck resistance, naturally slowing flow</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">Dose & Yield Ratios</div>
+    <div class="guide-card">
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">1:2 ratio</strong> (e.g. 21.5g → 43g) — classic espresso, balanced body and intensity</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">1:1.5–1.8</strong> — ristretto style, thick and concentrated</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">1:2.5–3</strong> — lungo style, lighter and more tea-like</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Always scale yield with dose — bigger dose needs bigger yield for same ratio</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>The 25–30s rule is a rough guide only — taste is the real target, not the clock</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">Roast Level Guide</div>
+    <div class="guide-card">
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">Light roast</strong> — higher acidity, fruity/floral notes. May need finer grind and higher temp (93–94°C). Longer extraction time common.</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">Medium roast</strong> — balanced. Standard settings (91–93°C). Most forgiving to dial in.</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span><strong style="color:var(--text)">Dark roast</strong> — low acidity, heavy body, chocolatey/smoky. Lower temp (88–91°C). Coarser grind. Shorter extraction.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-section-title">Grind Adjustment Rules</div>
+    <div class="guide-card">
+      <div class="guide-card-body">
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Always change grind by <strong style="color:var(--text)">1 click at a time</strong> — small changes have large effects</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>After changing grind, purge 1–2g before your real dose to clear old grounds</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Finer = slower flow, more extraction, less sour, more bitter risk</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>Coarser = faster flow, less extraction, less bitter, more sour risk</span></div>
+        <div class="guide-rule"><span class="guide-rule-arrow">→</span><span>As beans age (7–21 days post-roast is peak), you may need to go finer gradually</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══ SETTINGS ══════════════════════════════════════════════
+function renderSettings(){
+  const t=document.getElementById("settings-token");
+  const s=document.getElementById("settings-shot-db");
+  const b=document.getElementById("settings-bean-db");
+  if(t)t.value=getToken();
+  if(s)s.value=getShotDB();
+  if(b)b.value=getBeanDB();
+}
+function saveSettings(){
+  const t=document.getElementById("settings-token")?.value.trim();
+  const s=document.getElementById("settings-shot-db")?.value.trim().replace(/-/g,"");
+  const b=document.getElementById("settings-bean-db")?.value.trim().replace(/-/g,"");
+  if(t)localStorage.setItem("notion_token",t);
+  if(s)localStorage.setItem("shot_db_id",s);
+  if(b)localStorage.setItem("bean_db_id",b);
+  showSuccess("Settings saved ✓");
+  loadAll();
+}
+function clearToken(){
+  if(!confirm("Disconnect and reset?"))return;
   localStorage.removeItem("notion_token");
   location.reload();
 }
 
-function saveSettings() {
-  const token = document.getElementById("settings-token").value.trim();
-  const shotDb = document.getElementById("settings-shot-db").value.trim().replace(/-/g,"");
-  const beanDb = document.getElementById("settings-bean-db").value.trim().replace(/-/g,"");
-  if (token) localStorage.setItem("notion_token", token);
-  if (shotDb) localStorage.setItem("shot_db_id", shotDb);
-  if (beanDb) localStorage.setItem("bean_db_id", beanDb);
-  showSuccess("Settings saved ✓");
-  loadShots();
-  loadBeans();
-}
-
-function showSetupError(msg) {
-  const el = document.getElementById("setup-error");
-  el.style.display = ""; el.textContent = msg;
-}
-
-function toggleTokenVis() {
-  const input = document.getElementById("setup-token");
-  const btn = input.nextElementSibling;
-  input.type = input.type === "password" ? "text" : "password";
-  btn.textContent = input.type === "password" ? "show" : "hide";
-}
-
-function toggleSettingsTokenVis() {
-  const input = document.getElementById("settings-token");
-  const btn = input.nextElementSibling;
-  input.type = input.type === "password" ? "text" : "password";
-  btn.textContent = input.type === "password" ? "show" : "hide";
-}
-
-// ── UI helpers ─────────────────────────────────────────
-function tasteColor(t){ return {"Sour":"#ef4444","Slightly Sour":"#f97316","Balanced":"#22c55e","Slightly Bitter":"#f97316","Bitter":"#ef4444"}[t]||"#94a3b8"; }
-function flowColor(v){ return v>=1&&v<=2?"#22c55e":v<1?"#ef4444":"#f97316"; }
-function flowBarHTML(value) {
-  const pct = Math.min(100,Math.max(0,((value-0.5)/2.5)*100));
-  const color = flowColor(value);
-  return `<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>3 g/s</span></div>
-<div class="flow-bar-track"><div class="flow-bar-fill" style="width:${pct}%;background:${color}"></div></div>`;
-}
-function tagHTML(label,color="#475569"){ return `<span class="tag" style="border:1px solid ${color}44;background:${color}18;color:${color}">${label}</span>`; }
-function today(){ return new Date().toISOString().split("T")[0]; }
-function showLoading(id,msg){ document.getElementById(id).innerHTML=`<div class="loading"><div class="spinner"></div>${msg}</div>`; }
-function showError(msg){ const el=document.getElementById("global-msg"); el.innerHTML=`<div class="error-box">${msg}</div>`; setTimeout(()=>el.innerHTML="",6000); }
-function showSuccess(msg){ const el=document.getElementById("global-msg"); el.innerHTML=`<div class="success-flash">${msg}</div>`; setTimeout(()=>el.innerHTML="",3000); }
-
-// ── Tabs ───────────────────────────────────────────────
-function switchTab(tab) {
-  ["shots","beans","settings"].forEach(t => {
-    document.getElementById("view-"+t).style.display = t===tab ? "" : "none";
-    document.getElementById("tab-"+t).className = "tab" + (t===tab?" active":"");
-  });
-  if (tab==="beans") loadBeans();
-  if (tab==="settings") {
-    document.getElementById("settings-token").value = getToken();
-    document.getElementById("settings-shot-db").value = getShotDB();
-    document.getElementById("settings-bean-db").value = getBeanDB();
+// ══ SETUP ════════════════════════════════════════════════
+async function saveToken(){
+  const token=document.getElementById("setup-token").value.trim();
+  if(!token){showSetupError("Please enter your token.");return;}
+  localStorage.setItem("notion_token",token);
+  try{
+    await notionFetch(`/databases/${getShotDB()}`);
+    initApp();
+  }catch(e){
+    localStorage.removeItem("notion_token");
+    showSetupError("Could not connect: "+e.message);
   }
 }
-
-// ── Shot form ──────────────────────────────────────────
-function toggleShotForm() {
-  shotFormOpen = !shotFormOpen;
-  document.getElementById("shot-form").style.display = shotFormOpen ? "" : "none";
-  document.getElementById("toggle-shot-form").textContent = shotFormOpen ? "✕  Cancel" : "+ Log a Shot";
-  document.getElementById("toggle-shot-form").className = "btn btn-margin " + (shotFormOpen ? "btn-cancel" : "btn-primary");
-  if (shotFormOpen) {
-    document.getElementById("f-date").value = today();
-    renderBeanDropdown();
-    renderRoastPills("roast-pills-shot", shotState, "shot");
-    renderTastePills();
-  }
+function showSetupError(msg){
+  const el=document.getElementById("setup-error");
+  el.style.display="";el.textContent=msg;
+}
+function toggleVis(inputId,btn){
+  const input=document.getElementById(inputId);
+  input.type=input.type==="password"?"text":"password";
+  btn.textContent=input.type==="password"?"show":"hide";
 }
 
-function renderTastePills() {
-  document.getElementById("taste-pills").innerHTML = TASTE_PROFILES.map(t => {
-    const color = tasteColor(t); const active = shotState.taste===t;
-    return `<button class="pill" onclick="shotState.taste='${t}';renderTastePills()" style="${active?`background:${color};border-color:${color};color:#fff`:''}">${t}</button>`;
-  }).join("");
+// ══ MSG HELPERS ═══════════════════════════════════════════
+function showLoading(id,msg){const el=document.getElementById(id);if(el)el.innerHTML=`<div class="loading"><div class="spinner"></div>${msg}</div>`;}
+function showError(msg){const el=document.getElementById("global-msg");if(!el)return;el.innerHTML=`<div class="error-box" style="margin:0 0 12px">${msg}</div>`;setTimeout(()=>el.innerHTML="",6000);}
+function showSuccess(msg){const el=document.getElementById("global-msg");if(!el)return;el.innerHTML=`<div class="success-flash" style="margin:0 0 12px">${msg}</div>`;setTimeout(()=>el.innerHTML="",3000);}
+
+// ══ INIT ══════════════════════════════════════════════════
+function initApp(){
+  document.getElementById("setup-screen").style.display="none";
+  document.getElementById("main-screen").style.display="flex";
+  loadAll();
 }
 
-function renderRoastPills(containerId, stateObj, which) {
-  document.getElementById(containerId).innerHTML = ROAST_LEVELS.map(r => {
-    const active = stateObj.roast===r;
-    return `<button class="pill${active?" active-gold":""}" onclick="${which==='shot'?'shotState':'beanState'}.roast='${r}';renderRoastPills('${containerId}',${which==='shot'?'shotState':'beanState'},'${which}')">${r}</button>`;
-  }).join("");
-}
-
-function renderBeanDropdown() {
-  const g = document.getElementById("bean-select-group");
-  const hint = document.getElementById("override-hint");
-  if (!beans.length) { g.innerHTML=""; hint.textContent=""; return; }
-  hint.textContent = "(or type manually below)";
-  g.innerHTML = `<label class="label">Select from bean database</label>
-<select onchange="prefillFromBean(this.value)">
-  <option value="">— Choose bean —</option>
-  ${beans.map(b=>`<option value="${b.id}">${b.name}${b.roast?" · "+b.roast:""}</option>`).join("")}
-</select>`;
-}
-
-function prefillFromBean(id) {
-  const bean = beans.find(b=>b.id===id); if (!bean) return;
-  document.getElementById("f-beans").value = bean.name;
-  document.getElementById("f-dose").value = bean.defaultDose||"";
-  document.getElementById("f-grind").value = bean.defaultGrind||"";
-  if (bean.roast) { shotState.roast=bean.roast; renderRoastPills("roast-pills-shot",shotState,"shot"); }
-  document.querySelector(".prefill-notice")?.remove();
-  const n = document.createElement("div"); n.className="prefill-notice"; n.textContent="✓ Pre-filled from bean database";
-  document.getElementById("bean-select-group").appendChild(n);
-}
-
-function updateFlowPreview() {
-  const y = parseFloat(document.getElementById("f-yield").value);
-  const t = parseFloat(document.getElementById("f-time").value);
-  const box = document.getElementById("flow-preview");
-  if (y&&t&&t>0) { box.style.display=""; document.getElementById("flow-preview-bar").innerHTML=flowBarHTML(y/t); }
-  else box.style.display="none";
-}
-
-async function submitShot() {
-  const dose = parseFloat(document.getElementById("f-dose").value);
-  const yld  = parseFloat(document.getElementById("f-yield").value);
-  const time = parseFloat(document.getElementById("f-time").value);
-  if (!dose||!yld||!time) { showError("Please fill in dose, yield and time."); return; }
-  const shot = {
-    date: document.getElementById("f-date").value||today(),
-    bean: document.getElementById("f-beans").value.trim(),
-    roast: shotState.roast, doseG:dose, yieldG:yld, timeS:time,
-    grindSetting: document.getElementById("f-grind").value.trim(),
-    taste: shotState.taste,
-    notes: document.getElementById("f-notes").value.trim(),
-  };
-  const ok = await saveShot(shot);
-  if (ok) {
-    ["f-beans","f-yield","f-time","f-grind","f-notes"].forEach(id=>document.getElementById(id).value="");
-    document.getElementById("f-dose").value="";
-    shotState = {roast:"Medium",taste:"Balanced"};
-    toggleShotForm();
-    await loadShots();
-  }
-}
-
-// ── Render shots ───────────────────────────────────────
-function renderShotsTab() { renderStatsBar(); renderBestShot(); renderFilters(); renderShotList(); }
-
-function renderStatsBar() {
-  if (!logs.length) { document.getElementById("stats-bar").innerHTML=""; return; }
-  const valid = logs.filter(l=>l.timeS>0&&l.yieldG>0);
-  const avg = valid.length ? (valid.reduce((a,l)=>a+l.yieldG/l.timeS,0)/valid.length).toFixed(2) : "—";
-  document.getElementById("stats-bar").innerHTML = `<div class="stats">
-<div class="stat"><div class="stat-value">${logs.length}</div><div class="stat-label">Shots</div></div>
-<div class="stat"><div class="stat-value">${avg}</div><div class="stat-label">Avg g/s</div></div>
-<div class="stat"><div class="stat-value">${logs.filter(l=>l.taste==="Balanced").length}</div><div class="stat-label">Balanced</div></div>
-</div>`;
-}
-
-function renderBestShot() {
-  const best = logs.find(l=>l.taste==="Balanced");
-  const el = document.getElementById("best-shot-banner");
-  if (!best) { el.innerHTML=""; return; }
-  el.innerHTML = `<div class="best-shot">✦ Best: ${best.bean||"Unknown"} · ${best.grindSetting||"—"} · ${best.doseG}g → ${best.yieldG}g in ${best.timeS}s</div>`;
-}
-
-function renderFilters() {
-  const uniqueBeans = [...new Set(logs.map(l=>l.bean).filter(Boolean))];
-  const el = document.getElementById("filters-section");
-  if (!logs.length) { el.innerHTML=""; return; }
-  let html = '<div class="filter-section">';
-  if (uniqueBeans.length>1) {
-    html += `<div class="label" style="margin-bottom:6px">Filter by bean</div><div class="filter-row">`;
-    ["All",...uniqueBeans].forEach(f => {
-      html += `<button class="pill${filterBean===f?" active-gold-outline":""}" onclick="filterBean='${f}';renderShotsTab()">${f}</button>`;
-    });
-    html += `</div>`;
-  }
-  html += `<div class="label" style="margin-bottom:6px">Filter by taste</div><div class="filter-row">`;
-  ["All",...TASTE_PROFILES].forEach(f => {
-    html += `<button class="pill${filterTaste===f?" active-gold-outline":""}" onclick="filterTaste='${f}';renderShotsTab()">${f}</button>`;
-  });
-  html += `</div></div>`;
-  el.innerHTML = html;
-}
-
-function renderShotList() {
-  const filtered = logs.filter(l=>(filterTaste==="All"||l.taste===filterTaste)&&(filterBean==="All"||l.bean===filterBean));
-  const el = document.getElementById("shot-list");
-  if (!filtered.length) {
-    el.innerHTML=`<div class="empty">${!logs.length?"No shots logged yet.<br>Pull one and record it.":"No shots match these filters."}</div>`;
-    return;
-  }
-  el.innerHTML = filtered.map((log,i)=>{
-    const flowRate = log.flowRate||(log.timeS>0?log.yieldG/log.timeS:0);
-    const color = tasteColor(log.taste);
-    const bean = beans.find(b=>b.name===log.bean);
-    const tags = bean?.flavorTags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:"";
-    const origin = bean?.origin?` · ${bean.origin}`:"";
-    return `<div class="card" style="border-left:3px solid ${color}">
-<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px">
-  <div>
-    <div class="caption">Shot #${i+1}${log.date?" · "+log.date:""}</div>
-    <div style="font-size:14px;color:#e2e8f0;margin-top:2px;font-weight:500">${log.bean||"—"}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:1px">${log.roast}${origin}</div>
-  </div>
-  <span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${log.taste||"—"}</span>
-</div>
-${tags}
-<div class="data-grid">
-  <div class="data-cell"><div class="data-cell-label">Dose</div><div class="data-cell-value">${log.doseG}g</div></div>
-  <div class="data-cell"><div class="data-cell-label">Yield</div><div class="data-cell-value">${log.yieldG}g</div></div>
-  <div class="data-cell"><div class="data-cell-label">Time</div><div class="data-cell-value">${log.timeS}s</div></div>
-  <div class="data-cell"><div class="data-cell-label">Ratio</div><div class="data-cell-value">${log.ratio||"—"}</div></div>
-</div>
-${flowRate>0?`<div class="flow-box">${flowBarHTML(flowRate)}</div>`:""}
-<div class="info-row">
-  <div class="info-cell"><div class="label">Grind</div><div style="font-size:13px;color:#e2e8f0">${log.grindSetting||"—"}</div></div>
-  <div class="info-cell"><div class="label">Roast</div><div style="font-size:13px;color:#e2e8f0">${log.roast||"—"}</div></div>
-</div>
-${log.notes?`<div class="note-box">${log.notes}</div>`:""}
-</div>`;
-  }).join("");
-}
-
-// ── Bean form ──────────────────────────────────────────
-function toggleBeanForm() {
-  beanFormOpen = !beanFormOpen;
-  document.getElementById("bean-form").style.display = beanFormOpen?"":"none";
-  const btn = document.getElementById("toggle-bean-form");
-  btn.textContent = beanFormOpen ? "✕  Cancel" : "+ Add Bean";
-  btn.className = "btn btn-margin " + (beanFormOpen?"btn-cancel":"btn-primary");
-  if (beanFormOpen) { renderRoastPills("roast-pills-bean",beanState,"bean"); renderFlavorPills(); }
-}
-
-function renderFlavorPills() {
-  document.getElementById("flavor-pills").innerHTML = FLAVOR_TAGS.map(t => {
-    const active = beanState.flavorTags.includes(t);
-    return `<button class="pill${active?" active-gold-outline":""}" onclick="toggleFlavor('${t}')">${t}</button>`;
-  }).join("");
-}
-
-function toggleFlavor(t) {
-  beanState.flavorTags = beanState.flavorTags.includes(t) ? beanState.flavorTags.filter(x=>x!==t) : [...beanState.flavorTags,t];
-  renderFlavorPills();
-}
-
-async function submitBean() {
-  const name = document.getElementById("b-name").value.trim();
-  if (!name) { showError("Bean name is required."); return; }
-  const bean = {
-    name, origin: document.getElementById("b-origin").value.trim(),
-    process: document.getElementById("b-process").value,
-    defaultDose: parseFloat(document.getElementById("b-dose").value)||null,
-    defaultGrind: document.getElementById("b-grind").value.trim(),
-    roast: beanState.roast, flavorTags: beanState.flavorTags, notes:""
-  };
-  const ok = await saveBean(bean);
-  if (ok) {
-    ["b-name","b-origin","b-grind"].forEach(id=>document.getElementById(id).value="");
-    document.getElementById("b-dose").value="";
-    document.getElementById("b-process").value="";
-    beanState = {roast:"Medium",flavorTags:[]};
-    beanFormOpen=true; toggleBeanForm();
-    await loadBeans();
-  }
-}
-
-function renderBeansTab() {
-  const el = document.getElementById("bean-list");
-  if (!beans.length) { el.innerHTML=`<div class="empty">No beans yet.<br>Add your first bean above.</div>`; return; }
-  el.innerHTML = beans.map(b=>{
-    const meta = [b.origin,b.roast,b.process].filter(Boolean).join(" · ");
-    const tags = b.flavorTags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${b.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:"";
-    const defaults = [b.defaultDose?`${b.defaultDose}g dose`:null,b.defaultGrind?`${b.defaultGrind} grind`:null].filter(Boolean).join(" · ");
-    return `<div class="card">
-<div class="bean-header">
-  <div style="flex:1">
-    <div style="font-size:14px;color:#f1f5f9;font-weight:500">${b.name}</div>
-    ${meta?`<div style="font-size:11px;color:#64748b;margin-top:2px">${meta}</div>`:""}
-    ${tags}
-    ${defaults?`<div style="font-size:11px;color:#475569;margin-top:8px">${defaults}</div>`:""}
-  </div>
-  <div class="bean-actions">
-    <button class="btn-sm" style="font-size:10px;color:#475569" onclick="window.open('https://www.notion.so/${b.id.replace(/-/g,'')}','_blank')">Open in Notion</button>
-  </div>
-</div>
-</div>`;
-  }).join("");
-}
-
-// ── Install banner ─────────────────────────────────────
-function showInstallBannerIfNeeded() {
-  const dismissed = localStorage.getItem("install_dismissed");
-  const isStandalone = window.matchMedia("(display-mode:standalone)").matches||window.navigator.standalone;
-  if (!dismissed&&!isStandalone&&/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-    document.getElementById("install-banner").style.display="block";
-  }
-  document.getElementById("dismiss-install").onclick = () => {
-    document.getElementById("install-banner").style.display="none";
-    localStorage.setItem("install_dismissed","1");
-  };
-}
-
-// ── Init ───────────────────────────────────────────────
-function initApp() {
-  document.getElementById("setup-screen").style.display = "none";
-  document.getElementById("main-screen").style.display = "";
-  showInstallBannerIfNeeded();
-  loadShots();
-}
-
-// On load: show setup if no token, else go straight to app
-if (getToken()) {
-  initApp();
-} else {
-  document.getElementById("setup-screen").style.display = "";
-}
+if(getToken()){initApp();}
+else{document.getElementById("setup-screen").style.display="";}
 </script>
 </body>
 </html>
