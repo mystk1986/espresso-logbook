@@ -177,6 +177,19 @@
     .equipment-footer{font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
     .equipment-dot{width:3px;height:3px;border-radius:50%;background:var(--border2);flex-shrink:0}
     .shot-equipment{font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+
+    .freshness-wrap{margin-bottom:12px}
+    .freshness-track{height:6px;border-radius:99px;overflow:hidden;margin-top:4px;background:var(--surface2)}
+    .freshness-fill{height:100%;border-radius:99px;transition:width .5s}
+    .freshness-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px;font-family:'DM Sans',sans-serif}
+    .freshness-flag{background:#ef444418;border:1px solid #ef444444;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#ef4444;line-height:1.5}
+    .drift-flag{background:#f9731618;border:1px solid #f9731644;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#f97316;line-height:1.5}
+    .session-group{margin-bottom:14px}
+    .session-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .session-date-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-family:'DM Sans',sans-serif;white-space:nowrap}
+    .session-count-badge{font-size:9px;color:var(--muted);background:var(--surface2);border-radius:99px;padding:2px 8px;white-space:nowrap}
+    .session-line{flex:1;height:1px;background:var(--border)}
+    .flavor-note-tag{font-size:8px;padding:2px 7px;border-radius:99px;display:inline-block;margin:1px;border:1px solid transparent}
   </style>
 </head>
 <body>
@@ -318,14 +331,16 @@ const PROXY     = "https://script.google.com/macros/s/AKfycbyMcPag_A4QUA8br4zHPT
 const D_SHOT_DB = "04d4afddfab64e84ab5d4f8ed212ea26";
 const D_BEAN_DB = "7559b26c96024b0791b35fabf5c50ca3";
 const ROAST_LEVELS   = ["Light","Medium-Light","Medium","Medium-Dark","Dark"];
-const TASTE_PROFILES = ["Sour","Slightly Sour","Balanced","Slightly Bitter","Bitter"];
+const TASTE_PROFILES = ["Sour","Slightly Sour","Balanced with Acidity","Balanced","Slightly Bitter","Bitter"];
 const FLAVOR_TAGS    = ["Floral","Fruity","Citrus","Nutty","Chocolatey","Caramel","Earthy","Spicy","Berry","Stone Fruit"];
+const FLAVOR_NOTES   = ["Sweet","Chocolatey","Caramel","Nutty","Fruity","Citrus","Floral","Stone Fruit","Berry","Earthy","Hint of Sour","Hint of Bitter"];
+const BODY_OPTIONS   = ["Light","Medium","Full"];
 
 // ══ STATE ════════════════════════════════════════════════
 let logs=[], beans=[];
 let filterTaste="All", filterBean="All";
 let quickLogOpen=false, beanShotFormOpen=false, addBeanFormOpen=false;
-let shotState={roast:"Medium",taste:"Balanced",machine:"",grinder:""};
+let shotState={roast:"Medium",taste:"Balanced",machine:"",grinder:"",flavorNotes:[],body:""};
 let beanFormState={roast:"Medium",flavorTags:[]};
 let currentBeanId=null;
 
@@ -367,13 +382,14 @@ function mapShot(pg){const p=pg.properties||{};return{
   id:pg.id,date:parseDate(p["Date"]),bean:parseRT(p["Bean"]),roast:parseSel(p["Roast"]),
   doseG:parseNum(p["Dose (g)"]),yieldG:parseNum(p["Yield (g)"]),timeS:parseNum(p["Time (s)"]),
   grindSetting:parseRT(p["Grind Setting"]),taste:parseSel(p["Taste"]),
-  flowRate:parseNum(p["Flow Rate (g/s)"]),ratio:parseRT(p["Ratio"]),notes:parseRT(p["Notes"]),machine:parseSel(p["Machine"]),grinder:parseSel(p["Grinder"])
+  flowRate:parseNum(p["Flow Rate (g/s)"]),ratio:parseRT(p["Ratio"]),notes:parseRT(p["Notes"]),machine:parseSel(p["Machine"]),grinder:parseSel(p["Grinder"]),flavorNotes:parseMS(p["Flavor Notes"]),body:parseSel(p["Body"]),rating:parseNum(p["Rating"]),pinned:p["Pinned"]?.checkbox||false
 };}
 function mapBean(pg){const p=pg.properties||{};return{
   id:pg.id,name:parseTitle(p["Bean Name"]),origin:parseRT(p["Origin"]),
   roast:parseSel(p["Roast"]),process:parseSel(p["Process"]),
   flavorTags:parseMS(p["Flavor Tags"]),
   defaultDose:parseNum(p["Default Dose (g)"]),defaultGrind:parseRT(p["Default Grind"]),
+  roastDate:parseDate(p["Roast Date"]),
   notes:parseRT(p["Notes"])
 };}
 
@@ -400,18 +416,18 @@ async function reloadBeans(){
 
 // ══ HELPERS ══════════════════════════════════════════════
 const today=()=>new Date().toISOString().split("T")[0];
-const tasteColor=t=>({Sour:"#ef4444","Slightly Sour":"#f97316",Balanced:"#22c55e","Slightly Bitter":"#f97316",Bitter:"#ef4444"}[t]||"#94a3b8");
+const tasteColor=t=>({Sour:"#ef4444","Slightly Sour":"#f97316","Balanced with Acidity":"#22c55e",Balanced:"#00ff80","Slightly Bitter":"#f97316",Bitter:"#ef4444"}[t]||"#94a3b8");
 const flowColor=v=>v>=1&&v<=2?"#22c55e":v<1?"#ef4444":"#f97316";
 const tagHTML=(l,c)=>`<span class="tag" style="border:1px solid ${c}44;background:${c}18;color:${c}">${l}</span>`;
 
 function flowBarHTML(value,ghostValue=null){
-  const pct=v=>Math.min(100,Math.max(0,((v-0.5)/2.5)*100));
+  const pct=v=>Math.min(100,Math.max(0,((v-0.5)/1.5)*100));
   const color=flowColor(value);
   const ghostHTML=ghostValue!=null&&Math.abs(ghostValue-value)>0.05
     ?`<div class="flow-marker-ghost" style="left:${pct(ghostValue)}%"></div>`:"";
   const legendHTML=ghostValue!=null&&Math.abs(ghostValue-value)>0.05
     ?`<div class="flow-legend"><div class="flow-legend-item"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>This shot</div><div class="flow-legend-item"><div class="flow-legend-ghost"></div>Best shot</div></div>`:"";
-  return`<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>3 g/s</span></div>
+  return`<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>2.0 g/s</span></div>
 <div class="flow-bar-track"><div class="flow-bar-fill" style="width:${pct(value)}%;background:${color}"></div>${ghostHTML}</div>${legendHTML}`;
 }
 
@@ -424,13 +440,16 @@ function deltaHTML(current,best,unit=""){
 }
 
 function getBestShot(beanName){
-  const bl=logs.filter(l=>l.bean===beanName&&l.taste==="Balanced");
-  return bl.length?bl[0]:null;
+  const bl=logs.filter(l=>l.bean===beanName&&(l.taste==="Balanced"||l.taste==="Balanced with Acidity"));
+  if(!bl.length)return null;
+  const pinned=bl.find(l=>l.pinned);if(pinned)return pinned;
+  const rated=bl.filter(l=>l.rating>0).sort((a,b)=>b.rating-a.rating);
+  return rated.length?rated[0]:bl[0];
 }
 function getBeanStatus(beanName){
   const bl=logs.filter(l=>l.bean===beanName);
   if(!bl.length)return"new";
-  if(bl.some(l=>l.taste==="Balanced")){
+  if(bl.some(l=>(l.taste==="Balanced"||l.taste==="Balanced with Acidity"))){
     const last3=bl.slice(0,3);
     if(last3.length>=2&&last3.every(l=>l.taste!=="Balanced"))return"attention";
     return"dialled";
@@ -553,6 +572,163 @@ function populateEquipmentSettings(){
   const pk=document.getElementById("eq-puck");if(pk)pk.value=eq.puck||"";
 }
 
+
+// ══ FRESHNESS & DRIFT HELPERS ═════════════════════════════════════════
+function getFreshnessInfo(bean){
+  const today=new Date();today.setHours(0,0,0,0);
+  const info={daysSinceRoast:null,status:"unknown",label:"",pct:0,color:"#475569"};
+  if(bean.roastDate){
+    const rd=new Date(bean.roastDate);rd.setHours(0,0,0,0);
+    info.daysSinceRoast=Math.floor((today-rd)/(1000*60*60*24));
+  }
+  if(info.daysSinceRoast!==null){
+    const d=info.daysSinceRoast;
+    if(d<7){info.status="resting";info.label=`Resting (${d}d post-roast)`;info.pct=Math.round((d/7)*20);info.color="#60a5fa";}
+    else if(d<=21){info.status="peak";info.label=`Peak freshness (${d}d post-roast)`;info.pct=Math.round(20+((d-7)/14)*60);info.color="#22c55e";}
+    else if(d<=35){info.status="fading";info.label=`Fading (${d}d post-roast)`;info.pct=Math.round(80+((d-21)/14)*15);info.color="#f97316";}
+    else{info.status="stale";info.label=`Stale (${d}d post-roast)`;info.pct=100;info.color="#ef4444";}
+  }
+  return info;
+}
+
+function detectGrindDrift(beanName){
+  const bl=logs.filter(l=>l.bean===beanName);
+  if(bl.length<3)return null;
+  // Check if last 3 shots are trending sourly when previous history was balanced
+  const last3=bl.slice(0,3);
+  const prev=bl.slice(3,8);
+  const recentSour=last3.filter(l=>l.taste==="Sour"||l.taste==="Slightly Sour").length;
+  const prevBalanced=prev.filter(l=>(l.taste==="Balanced"||l.taste==="Balanced with Acidity")).length;
+  if(recentSour>=2&&prevBalanced>=1)return"Recent shots trending sour despite previous balanced results — beans may be aging. Try going 1 click finer.";
+  return null;
+}
+
+function getShotsToFirstBalanced(beanName){
+  const bl=logs.filter(l=>l.bean===beanName);
+  if(!bl.length)return null;
+  // logs are newest-first, so reverse to find chronological first balanced
+  const chrono=[...bl].reverse();
+  const firstBalIdx=chrono.findIndex(l=>(l.taste==="Balanced"||l.taste==="Balanced with Acidity"));
+  if(firstBalIdx===-1)return null;
+  return firstBalIdx+1;
+}
+
+function groupShotsBySessions(shots){
+  const groups={};
+  shots.forEach(s=>{
+    const key=s.date||"Unknown date";
+    if(!groups[key])groups[key]=[];
+    groups[key].push(s);
+  });
+  return Object.entries(groups).sort((a,b)=>b[0].localeCompare(a[0]));
+}
+
+// ══ FLAVOR NOTES HELPERS ══════════════════════════════════════════════
+function renderQLFlavorNotesPills(){
+  const el=document.getElementById("ql-flavor-notes-pills");if(!el)return;
+  el.innerHTML=FLAVOR_NOTES.map(t=>{
+    const active=shotState.flavorNotes.includes(t);
+    const color=t.includes("Sour")?"#ef4444":t.includes("Bitter")?"#f97316":"#c8963e";
+    return`<button class="pill${active?" active-gold-outline":""}" onclick="toggleQLFlavor('${t}')" style="${active?`background:${color}18;border-color:${color};color:${color}`:''}">${t}</button>`;
+  }).join("");
+}
+function toggleQLFlavor(t){
+  shotState.flavorNotes=shotState.flavorNotes.includes(t)?shotState.flavorNotes.filter(x=>x!==t):[...shotState.flavorNotes,t];
+  renderQLFlavorNotesPills();
+}
+function renderQLBodyPills(){
+  const el=document.getElementById("ql-body-pills");if(!el)return;
+  el.innerHTML=BODY_OPTIONS.map(o=>{
+    const active=shotState.body===o;
+    return`<button class="pill${active?" active-gold":""}" onclick="shotState.body='${o}';renderQLBodyPills()">${o}</button>`;
+  }).join("");
+}
+function renderBSFFlavorNotesPills(){
+  const el=document.getElementById("bsf-flavor-notes-pills");if(!el)return;
+  el.innerHTML=FLAVOR_NOTES.map(t=>{
+    const active=shotState.flavorNotes.includes(t);
+    const color=t.includes("Sour")?"#ef4444":t.includes("Bitter")?"#f97316":"#c8963e";
+    return`<button class="pill${active?" active-gold-outline":""}" onclick="toggleBSFFlavor('${t}')" style="${active?`background:${color}18;border-color:${color};color:${color}`:''}">${t}</button>`;
+  }).join("");
+}
+function toggleBSFFlavor(t){
+  shotState.flavorNotes=shotState.flavorNotes.includes(t)?shotState.flavorNotes.filter(x=>x!==t):[...shotState.flavorNotes,t];
+  renderBSFFlavorNotesPills();
+}
+function renderBSFBodyPills(){
+  const el=document.getElementById("bsf-body-pills");if(!el)return;
+  el.innerHTML=BODY_OPTIONS.map(o=>{
+    const active=shotState.body===o;
+    return`<button class="pill${active?" active-gold":""}" onclick="shotState.body='${o}';renderBSFBodyPills()">${o}</button>`;
+  }).join("");
+}
+function flavorNoteTagHTML(note){
+  const color=note.includes("Sour")?"#ef4444":note.includes("Bitter")?"#f97316":"#c8963e";
+  return`<span class="flavor-note-tag" style="background:${color}18;border-color:${color}44;color:${color}">${note}</span>`;
+}
+
+
+// ══ RATING & PIN ══════════════════════════════════════════════════════
+async function updateShotRating(shotId,rating){
+  const props={"Rating":numProp(rating)};
+  await callNotion("PATCH",`/pages/${shotId}`,{properties:props});
+  const s=logs.find(l=>l.id===shotId);if(s)s.rating=rating;
+  renderShotsTab();renderBeanDetail();
+}
+async function toggleShotPin(shotId){
+  const s=logs.find(l=>l.id===shotId);if(!s)return;
+  const newPinned=!s.pinned;
+  // Unpin any previously pinned shot for same bean
+  if(newPinned){
+    const others=logs.filter(l=>l.bean===s.bean&&l.pinned&&l.id!==shotId);
+    for(const o of others){
+      await callNotion("PATCH",`/pages/${o.id}`,{properties:{"Pinned":checkProp(false)}});
+      o.pinned=false;
+    }
+  }
+  await callNotion("PATCH",`/pages/${shotId}`,{properties:{"Pinned":checkProp(newPinned)}});
+  s.pinned=newPinned;
+  renderShotsTab();renderBeanDetail();
+}
+function starsHTML(shotId,rating,pinned){
+  const stars=[1,2,3,4,5].map(i=>`<span onclick="event.stopPropagation();updateShotRating('${shotId}',${i})" style="font-size:16px;cursor:pointer;color:${i<=rating?"#c8963e":"#334155"};line-height:1">★</span>`).join("");
+  const pinBtn=`<button onclick="event.stopPropagation();toggleShotPin('${shotId}')" style="background:none;border:${pinned?"1px solid #c8963e":"1px solid #334155"};border-radius:99px;padding:2px 9px;font-size:9px;color:${pinned?"#c8963e":"#475569"};cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap">${pinned?"★ Pinned":"Pin as best"}</button>`;
+  return`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">${stars}${pinBtn}</div>`;
+}
+function checkProp(v){return{checkbox:v};}
+
+
+function renderFormStars(elId,stateKey){
+  const el=document.getElementById(elId);if(!el)return;
+  el.innerHTML=[1,2,3,4,5].map(i=>`<span onclick="${stateKey}=${i};renderFormStars('${elId}','${stateKey}')" style="font-size:22px;cursor:pointer;color:${i<=(window[stateKey]||0)?"#c8963e":"#334155"};line-height:1;user-select:none">★</span>`).join("")+`<span style="font-size:10px;color:var(--muted);margin-left:6px;font-family:'DM Sans',sans-serif">${window[stateKey]?window[stateKey]+"/5":""}</span>`;
+}
+
+function toggleBeanEdit(beanId){
+  const el=document.getElementById("bean-edit-form");
+  if(!el)return;
+  el.style.display=el.style.display==="none"?"block":"none";
+  const btn=document.getElementById("bean-edit-btn");
+  if(btn)btn.textContent=el.style.display==="none"?"Edit bean":"Cancel edit";
+}
+async function submitBeanEdit(beanId){
+  const btn=document.querySelector("#bean-edit-form .btn-primary");
+  if(btn){btn.disabled=true;btn.textContent="Saving...";}
+  const props={};
+  const rd=document.getElementById("bef-roast-date")?.value;
+  if(rd)props["Roast Date"]=dateProp(rd);
+  const dose=parseFloat(document.getElementById("bef-dose")?.value);
+  if(!isNaN(dose))props["Default Dose (g)"]=numProp(dose);
+  const grind=document.getElementById("bef-grind")?.value.trim();
+  if(grind)props["Default Grind"]=richText(grind);
+  const notes=document.getElementById("bef-notes")?.value.trim();
+  if(notes!==undefined)props["Notes"]=richText(notes);
+  try{
+    await callNotion("PATCH",`/pages/${beanId}`,{properties:props});
+    showSuccess("Bean updated ✓");
+    await loadAll();
+    navTo("bean-detail");
+  }catch(e){showError("Failed to save bean changes");}
+}
 // ══ SHOTS TAB ════════════════════════════════════════════
 function renderShotsTab(){
   // Stats
@@ -563,12 +739,12 @@ function renderShotsTab(){
     statsEl.innerHTML=`<div class="stats">
       <div class="stat"><div class="stat-value">${logs.length}</div><div class="stat-label">Shots</div></div>
       <div class="stat"><div class="stat-value">${avg}</div><div class="stat-label">Avg g/s</div></div>
-      <div class="stat"><div class="stat-value">${logs.filter(l=>l.taste==="Balanced").length}</div><div class="stat-label">Balanced</div></div>
+      <div class="stat"><div class="stat-value">${logs.filter(l=>(l.taste==="Balanced"||l.taste==="Balanced with Acidity")).length}</div><div class="stat-label">Balanced</div></div>
     </div>`;
   }else statsEl.innerHTML="";
 
   // Best shot banner
-  const best=logs.find(l=>l.taste==="Balanced");
+  const best=logs.find(l=>(l.taste==="Balanced"||l.taste==="Balanced with Acidity"));
   const bestEl=document.getElementById("shots-best-banner");
   if(best){
     bestEl.innerHTML=`<div class="best-banner">
@@ -609,7 +785,10 @@ function renderShotCard(shot,idx,bestShot){
   const isCurrentBest=bestShot&&shot.id===bestShot.id;
   const showDeltas=bestShot&&!isCurrentBest;
   const bean=beans.find(b=>b.name===shot.bean);
-  const tags=bean?.flavorTags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:"";
+  const tags=bean?.flavorTags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:"";
+  const stars=starsHTML(shot.id,shot.rating||0,shot.pinned||false);
+  const fn=shot.flavorNotes?.length?`<div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:8px">${shot.flavorNotes.map(n=>flavorNoteTagHTML(n)).join("")}</div>`:"";
+  const bodyTag=shot.body?`<span style="font-size:9px;color:#60a5fa;background:#60a5fa18;border:1px solid #60a5fa44;border-radius:99px;padding:1px 8px;margin-left:6px">${shot.body}</span>`:"";;
   const yDelta=showDeltas?deltaHTML(shot.yieldG,bestShot.yieldG,"g"):"";
   const tDelta=showDeltas?deltaHTML(shot.timeS,bestShot.timeS,"s"):"";
   let grindMatchHTML="";
@@ -625,9 +804,10 @@ function renderShotCard(shot,idx,bestShot){
         <div style="font-size:14px;color:#e2e8f0;margin-top:2px;font-weight:500">${shot.bean||"—"}</div>
         <div style="font-size:11px;color:#64748b;margin-top:1px">${shot.roast}${bean?.origin?" · "+bean.origin:""}</div>
       </div>
-      <span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${shot.taste||"—"}</span>
+      <span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${shot.taste||"—"}</span>${bodyTag}
     </div>
-    ${tags}
+    ${tags}${fn}
+    ${stars}
     <div class="data-grid">
       <div class="data-cell"><div class="data-cell-label">Dose</div><div class="data-cell-value">${shot.doseG}g</div></div>
       <div class="data-cell"><div class="data-cell-label">Yield</div><div class="data-cell-value">${shot.yieldG}g</div>${yDelta}</div>
@@ -657,7 +837,7 @@ function toggleQuickLog(){
     btn.textContent="✕  Cancel";btn.className="btn btn-cancel btn-margin";
     container.style.display="";
     const _eq=getEquipment();
-    shotState={roast:"Medium",taste:"Balanced",machine:(_eq.machines||[])[0]||"",grinder:(_eq.grinders||[])[0]||""};
+    window.qlRating=0;shotState={roast:"Medium",taste:"Balanced",flavorNotes:[],body:"",machine:(_eq.machines||[])[0]||"",grinder:(_eq.grinders||[])[0]||""};
     renderQuickLogHTML();
   }else{
     btn.textContent="+ Log a Shot";btn.className="btn btn-primary btn-margin";
@@ -686,6 +866,17 @@ function renderQuickLogHTML(){
     </div>
     <div class="form-group"><label class="label">Roast level</label><div class="pills" id="ql-roast-pills"></div></div>
     <div class="form-group"><label class="label">Taste</label><div class="pills" id="ql-taste-pills"></div></div>
+    <div class="form-group">
+      <label class="label">Flavor notes <span style="color:var(--muted);font-size:9px">(optional — what did it taste like?)</span></label>
+      <div class="pills" id="ql-flavor-notes-pills"></div>
+    </div>
+    <div class="form-group"><label class="label">Body</label>
+      <div class="pills" id="ql-body-pills"></div>
+    </div>
+    <div class="form-group">
+      <label class="label">Your rating <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+      <div id="ql-stars-row" style="display:flex;gap:4px;align-items:center"></div>
+    </div>
     <div class="form-group"><label class="label">Notes</label><textarea id="ql-notes" rows="2" placeholder="Puck prep, observations..."></textarea></div>
     <div id="ql-flow-preview" style="display:none" class="preview-box"><label class="label">Flow rate preview</label><div id="ql-flow-bar"></div></div>
     ${(()=>{const eq=getEquipment();const ms=eq.machines||[];const gs=eq.grinders||[];
@@ -702,6 +893,9 @@ function renderQuickLogHTML(){
   </div>`;
   renderPillsGeneric("ql-roast-pills",ROAST_LEVELS,shotState.roast,v=>{shotState.roast=v;renderPillsGeneric("ql-roast-pills",ROAST_LEVELS,shotState.roast,null,"gold");},"gold");
   renderQLTastePills();
+  renderQLFlavorNotesPills();
+  renderQLBodyPills();
+  renderFormStars('ql-stars-row','qlRating');
 }
 
 function prefillQuickLog(id){
@@ -746,6 +940,9 @@ async function submitQuickLog(){
       "Taste":selProp(shotState.taste),
       "Machine":selProp(shotState.machine||document.getElementById("ql-machine")?.value||""),
       "Grinder":selProp(shotState.grinder||document.getElementById("ql-grinder")?.value||""),
+      "Flavor Notes":multiSel(shotState.flavorNotes||[]),
+      "Body":selProp(shotState.body||""),
+      "Rating":numProp(window.qlRating||null),
       "Flow Rate (g/s)":numProp(parseFloat((yld/time).toFixed(3))),
       "Ratio":richText(`1:${(yld/dose).toFixed(2)}`),
       "Notes":richText(document.getElementById("ql-notes")?.value||""),
@@ -801,7 +998,7 @@ function renderBeanDetail(){
   const status=getBeanStatus(bean.name);
   const statusColor=getStatusColor(status);
   const recs=getRecommendations(bean.name);
-  const balancedCount=bl.filter(l=>l.taste==="Balanced").length;
+  const balancedCount=bl.filter(l=>(l.taste==="Balanced"||l.taste==="Balanced with Acidity")).length;
   const dialPct=bl.length?Math.min(100,Math.round((balancedCount/Math.max(bl.length,1))*100)):0;
 
   // Bean-specific stats
@@ -830,6 +1027,9 @@ function renderBeanDetail(){
 
   // Header
   html+=`<div class="bean-detail-header">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+      <button onclick="toggleBeanEdit('${bean.id}')" id="bean-edit-btn" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;font-size:10px;color:var(--gold);font-family:'DM Mono',monospace;cursor:pointer">Edit bean</button>
+    </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <div class="bean-status-dot" style="background:${statusColor};width:10px;height:10px"></div>
       <span style="font-size:10px;color:${statusColor};text-transform:uppercase;letter-spacing:.08em">${getStatusLabel(status)}</span>
@@ -837,17 +1037,56 @@ function renderBeanDetail(){
     <div class="bean-detail-name">${bean.name}</div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:10px">${[bean.roast,bean.origin,bean.process].filter(Boolean).join(" · ")}</div>
     ${bean.flavorTags.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${bean.flavorTags.map(t=>tagHTML(t,"#c8963e")).join("")}</div>`:""}
-    <div class="dial-progress">
-      <div class="dial-bar"><div class="dial-bar-fill" style="width:${dialPct}%"></div></div>
-      <span style="font-size:10px;color:var(--muted);white-space:nowrap">${balancedCount}/${bl.length} balanced</span>
-    </div>
+    ${(()=>{
+      const shotsToFirst=getShotsToFirstBalanced(bean.name);
+      return `<div class="dial-progress">
+        <div class="dial-bar"><div class="dial-bar-fill" style="width:${dialPct}%"></div></div>
+        <span style="font-size:10px;color:var(--muted);white-space:nowrap">${balancedCount}/${bl.length} balanced</span>
+      </div>
+      ${shotsToFirst?`<div class="dial-shots-to-best">First balanced shot reached in ${shotsToFirst} pull${shotsToFirst>1?"s":""}</div>`:""}`;
+    })()}
     ${bean.defaultDose||bean.defaultGrind?`<div style="font-size:11px;color:var(--muted);margin-top:6px">Defaults: ${[bean.defaultDose?bean.defaultDose+"g dose":null,bean.defaultGrind?bean.defaultGrind+" grind":null].filter(Boolean).join(" · ")}</div>`:""}
+    ${bean.roastDate?`<div style="font-size:11px;color:var(--muted);margin-top:4px">Roasted ${bean.roastDate}</div>`:""}
   </div>`;
 
   // Stop target
   if(bestShot){
     html+=`<div class="stop-target">⏱ Stop machine at <strong style="margin-left:4px">~${(bestShot.yieldG-1.5).toFixed(0)}g</strong> on scale</div>`;
   }
+
+  // ── Bean edit form (hidden by default) ─────────
+  html+=`<div id="bean-edit-form" style="display:none">
+    <div class="card" style="margin-bottom:12px">
+      <div class="form-group"><label class="label">Roast date</label><input type="date" id="bef-roast-date" value="${bean.roastDate||''}"/></div>
+      <div class="form-grid">
+        <div class="form-group"><label class="label">Default dose (g)</label><input type="number" id="bef-dose" value="${bean.defaultDose||''}" step="0.1"/></div>
+        <div class="form-group"><label class="label">Default grind</label><input type="text" id="bef-grind" value="${bean.defaultGrind||''}"/></div>
+      </div>
+      <div class="form-group"><label class="label">Notes</label><textarea id="bef-notes" rows="2">${bean.notes||''}</textarea></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="submitBeanEdit('${bean.id}')" style="flex:1">Save Changes</button>
+        <button class="btn" onclick="toggleBeanEdit('${bean.id}')" style="flex:0 0 auto">Cancel</button>
+      </div>
+    </div>
+  </div>`;
+  // ── Freshness indicator ──────────────────────────
+  const fresh=getFreshnessInfo(bean);
+  if(fresh.daysSinceRoast!==null){
+    html+=`<div class="freshness-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="label" style="margin-bottom:0">Freshness</span>
+        <span style="font-size:10px;color:${fresh.color};font-family:'DM Sans',sans-serif">${fresh.label}</span>
+      </div>
+      <div class="freshness-track"><div class="freshness-fill" style="width:${fresh.pct}%;background:${fresh.color}"></div></div>
+      <div class="freshness-labels"><span>Roast date</span><span style="color:#22c55e">Peak 7–21d</span><span>Stale</span></div>
+    </div>`;
+    if(fresh.status==="stale"||fresh.status==="fading"){
+      html+=`<div class="freshness-flag">⚑ Bean is ${fresh.label.toLowerCase()} — if shots are going sour, freshness may be a factor. Try going 0.5–1 click finer.</div>`;
+    }
+  }
+  // ── Grind drift detection ─────────────────────────
+  const drift=detectGrindDrift(bean.name);
+  if(drift)html+=`<div class="drift-flag">↓ Grind drift detected — ${drift}</div>`;
 
   // Best shot reference
   if(bestShot){
@@ -879,7 +1118,21 @@ function renderBeanDetail(){
   if(!bl.length){
     html+=`<div class="empty">No shots yet for this bean.<br>Tap + Log a Shot above.</div>`;
   }else{
-    html+=bl.map((s,i)=>renderShotCard(s,i,bestShot)).join("");
+    // Session grouping
+    const sessions=groupShotsBySessions(bl);
+    sessions.forEach(([date,shots])=>{
+      const sessionBest=shots.some(s=>(s.taste==="Balanced"||s.taste==="Balanced with Acidity"));
+      html+=`<div class="session-group">
+        <div class="session-header">
+          <div class="session-line"></div>
+          <span class="session-date-label">${date}</span>
+          <span class="session-count-badge">${shots.length} pull${shots.length>1?"s":""}</span>
+          ${sessionBest?`<span style="font-size:9px;color:#22c55e">✓</span>`:""}
+          <div class="session-line"></div>
+        </div>
+        ${shots.map((s,i)=>renderShotCard(s,bl.indexOf(s),bestShot)).join("")}
+      </div>`;
+    });
   }
 
   document.getElementById("bean-detail-content").innerHTML=html;
@@ -895,7 +1148,7 @@ function toggleBeanShotForm(beanName,beanId){
     wrap.style.display="";
     const bean=beans.find(b=>b.id===beanId);
     const _eq2=getEquipment();
-    shotState={roast:bean?.roast||"Medium",taste:"Balanced",machine:(_eq2.machines||[])[0]||"",grinder:(_eq2.grinders||[])[0]||""};
+    window.bsfRating=0;shotState={roast:bean?.roast||"Medium",taste:"Balanced",flavorNotes:[],body:"",machine:(_eq2.machines||[])[0]||"",grinder:(_eq2.grinders||[])[0]||""};
     renderBeanShotFormHTML(beanName,beanId);
   }else{
     btn.textContent=`+ Log a Shot for ${beanName}`;btn.className="btn btn-primary btn-margin";
@@ -923,6 +1176,17 @@ function renderBeanShotFormHTML(beanName,beanId){
     </div>
     <div class="form-group"><label class="label">Roast level</label><div class="pills" id="bsf-roast-pills"></div></div>
     <div class="form-group"><label class="label">Taste</label><div class="pills" id="bsf-taste-pills"></div></div>
+    <div class="form-group">
+      <label class="label">Flavor notes <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+      <div class="pills" id="bsf-flavor-notes-pills"></div>
+    </div>
+    <div class="form-group"><label class="label">Body</label>
+      <div class="pills" id="bsf-body-pills"></div>
+    </div>
+    <div class="form-group">
+      <label class="label">Your rating <span style="color:var(--muted);font-size:9px">(optional)</span></label>
+      <div id="bsf-stars-row" style="display:flex;gap:4px;align-items:center"></div>
+    </div>
     <div class="form-group"><label class="label">Notes</label><textarea id="bsf-notes" rows="2" placeholder="Puck prep, observations..."></textarea></div>
     <div id="bsf-flow-preview" style="display:none" class="preview-box"><label class="label">Flow rate preview</label><div id="bsf-flow-bar"></div></div>
     ${(()=>{const eq=getEquipment();const ms=eq.machines||[];const gs=eq.grinders||[];
@@ -939,6 +1203,9 @@ function renderBeanShotFormHTML(beanName,beanId){
   </div>`;
   renderPillsGeneric("bsf-roast-pills",ROAST_LEVELS,shotState.roast,v=>{shotState.roast=v;renderPillsGeneric("bsf-roast-pills",ROAST_LEVELS,shotState.roast,null,"gold");},"gold");
   renderBSFTastePills();
+  renderBSFFlavorNotesPills();
+  renderBSFBodyPills();
+  renderFormStars('bsf-stars-row','bsfRating');
 }
 
 function renderBSFTastePills(){
@@ -972,6 +1239,9 @@ async function submitBeanShotForm(beanName,beanId){
       "Taste":selProp(shotState.taste),
       "Machine":selProp(shotState.machine||document.getElementById("bsf-machine")?.value||""),
       "Grinder":selProp(shotState.grinder||document.getElementById("bsf-grinder")?.value||""),
+      "Flavor Notes":multiSel(shotState.flavorNotes||[]),
+      "Body":selProp(shotState.body||""),
+      "Rating":numProp(window.bsfRating||null),
       "Flow Rate (g/s)":numProp(parseFloat((yld/time).toFixed(3))),
       "Ratio":richText(`1:${(yld/dose).toFixed(2)}`),
       "Notes":richText(document.getElementById("bsf-notes")?.value||""),
@@ -1010,6 +1280,7 @@ function renderAddBeanFormHTML(){
       <div class="form-group"><label class="label">Default dose (g)</label><input type="number" id="abf-dose" placeholder="21.5" step="0.1"/></div>
       <div class="form-group"><label class="label">Default grind</label><input type="text" id="abf-grind" placeholder="3rd click from 0"/></div>
     </div>
+    <div class="form-group"><label class="label">Roast date</label><input type="date" id="abf-roast-date"/></div>
     <div class="form-group"><label class="label">Roast level</label><div class="pills" id="abf-roast-pills"></div></div>
     <div class="form-group"><label class="label">Flavor tags</label><div class="pills" id="abf-flavor-pills"></div></div>
     <button class="btn btn-primary" id="abf-save-btn" onclick="submitAddBean()">Save Bean</button>
@@ -1042,6 +1313,7 @@ async function submitAddBean(){
       "Flavor Tags":multiSel(beanFormState.flavorTags),
       "Default Dose (g)":numProp(parseFloat(document.getElementById("abf-dose")?.value)||null),
       "Default Grind":richText(document.getElementById("abf-grind")?.value||""),
+      "Roast Date":dateProp(document.getElementById("abf-roast-date")?.value||""),
       "Notes":richText(""),
     });
     showSuccess("Bean saved to Notion ✓");
@@ -1061,6 +1333,37 @@ function renderPillsGeneric(id,opts,active,onChange,cls="gold"){
 function renderGuide(){
   const el=document.getElementById("guide-content");if(!el)return;
   el.innerHTML=`
+  <div class="guide-section">
+    <div class="guide-section-title">Taste Scale Reference</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px">
+      <table style="width:100%;border-collapse:collapse;font-family:'DM Sans',sans-serif">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:9px 12px;white-space:nowrap;vertical-align:top"><span style="font-size:11px;font-weight:500;color:#ef4444">Sour</span></td>
+          <td style="padding:9px 12px;font-size:10px;color:var(--muted);line-height:1.6">Under-extracted. Sharp, harsh acidity. Grind finer or stop yield earlier.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);background:var(--bg)">
+          <td style="padding:9px 12px;white-space:nowrap;vertical-align:top"><span style="font-size:11px;font-weight:500;color:#f97316">Slightly Sour</span></td>
+          <td style="padding:9px 12px;font-size:10px;color:var(--muted);line-height:1.6">Acidity dominant, getting close. Try 0.5 click finer.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:9px 12px;white-space:nowrap;vertical-align:top"><span style="font-size:11px;font-weight:500;color:#22c55e">Balanced<br>with Acidity</span></td>
+          <td style="padding:9px 12px;font-size:10px;color:var(--muted);line-height:1.6">Sweet with bright, lifted acidity. Sweetness leads, acidity complements. A lively, complex shot. Both this and Balanced are the target.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);background:var(--bg)">
+          <td style="padding:9px 12px;white-space:nowrap;vertical-align:top"><span style="font-size:11px;font-weight:500;color:#00ff80">Balanced</span></td>
+          <td style="padding:9px 12px;font-size:10px;color:var(--muted);line-height:1.6">Sweet, round, full-bodied. Clean, calm finish. The classic ideal target.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:9px 12px;white-space:nowrap;vertical-align:top"><span style="font-size:11px;font-weight:500;color:#f97316">Slightly Bitter</span></td>
+          <td style="padding:9px 12px;font-size:10px;color:var(--muted);line-height:1.6">Over-extracted. Try 0.5 click coarser or stop 1–2g earlier.</td>
+        </tr>
+        <tr>
+          <td style="padding:9px 12px;white-space:nowrap;vertical-align:top"><span style="font-size:11px;font-weight:500;color:#ef4444">Bitter</span></td>
+          <td style="padding:9px 12px;font-size:10px;color:var(--muted);line-height:1.6">Too far over-extracted. Ashy, dry, harsh finish. Go coarser.</td>
+        </tr>
+      </table>
+    </div>
+  </div>
   <div class="guide-section">
     <div class="guide-section-title">Troubleshooting by Taste</div>
     <div class="guide-card">
