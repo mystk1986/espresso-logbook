@@ -475,12 +475,31 @@ function flowBarHTML(value,ghostValue=null,beanName=null){
     legendItems+=`<div class="flow-legend-item"><div style="width:12px;height:6px;background:#c8963e33;border:1px solid #c8963e66;border-radius:2px;display:inline-block"></div>Balanced zone</div>`;
   const legendHTML=`<div class="flow-legend">${legendItems}</div>`;
 
-  // Status label
+  // Status label — cross-reference grind before giving advice
   let statusHTML="";
   if(zone){
-    if(value>=zone.min&&value<=zone.max)statusHTML=`<div style="font-size:9px;color:#22c55e;font-family:'DM Sans',sans-serif;margin-top:3px">✓ Inside your balanced zone</div>`;
-    else if(value<zone.min)statusHTML=`<div style="font-size:9px;color:#f97316;font-family:'DM Sans',sans-serif;margin-top:3px">Below zone · try going coarser</div>`;
-    else statusHTML=`<div style="font-size:9px;color:#f97316;font-family:'DM Sans',sans-serif;margin-top:3px">Above zone · try going finer</div>`;
+    const inZone=value>=zone.min&&value<=zone.max;
+    if(inZone){
+      statusHTML=`<div style="font-size:9px;color:#22c55e;font-family:'DM Sans',sans-serif;margin-top:3px">✓ Inside your balanced zone</div>`;
+    } else {
+      // Cross-reference grind setting
+      const bestShot=beanName?logs.filter(l=>l.bean===beanName&&(l.taste==="Balanced"||l.taste==="Balanced with Acidity")&&l.grindSetting).sort((a,b)=>(b.rating||0)-(a.rating||0))[0]:null;
+      const currentGrind=beanName?logs.find(l=>l.bean===beanName&&l.flowRate===value)?.grindSetting:null;
+      const bestGrind=bestShot?.grindSetting;
+      let advice="";
+      if(currentGrind&&bestGrind&&parseFloat(currentGrind)===parseFloat(bestGrind)){
+        // Same grind — not a grind issue
+        advice="Grind matches best shot — check puck prep or channelling";
+      } else if(currentGrind&&bestGrind&&value<zone.min){
+        advice=parseFloat(currentGrind)<parseFloat(bestGrind)?"Grind finer than best shot — try going slightly coarser":"Flow slow — try going coarser or check puck prep";
+      } else if(currentGrind&&bestGrind&&value>zone.max){
+        advice=parseFloat(currentGrind)>parseFloat(bestGrind)?"Grind coarser than best shot — try going slightly finer":"Flow fast — try going finer or check puck prep";
+      } else {
+        advice=value<zone.min?"Below balanced zone — try going coarser or check puck prep":"Above balanced zone — try going finer or check puck prep";
+      }
+      const col=value<zone.min?"#f97316":"#f97316";
+      statusHTML=`<div style="font-size:9px;color:${col};font-family:'DM Sans',sans-serif;margin-top:3px">${advice}</div>`;
+    }
   }
 
   return`<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>2.0 g/s</span></div>
