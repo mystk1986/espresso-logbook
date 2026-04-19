@@ -180,6 +180,14 @@
     .equipment-dot{width:3px;height:3px;border-radius:50%;background:var(--border2);flex-shrink:0}
     .shot-equipment{font-size:10px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 
+    .grind-dial-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
+    .grind-dial-val{font-size:18px;color:var(--gold);font-weight:600;text-align:center;margin-top:6px;font-family:'DM Mono',monospace}
+    .grind-dial-desc{font-size:9px;color:var(--muted);text-align:center;margin-top:2px;font-family:'DM Sans',sans-serif}
+    .grind-prev-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+    .grind-prev-btn{padding:4px 10px;border-radius:99px;font-size:10px;font-family:'DM Mono',monospace;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer}
+    .grind-prev-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+
     .freshness-wrap{margin-bottom:12px}
     .freshness-track{height:6px;border-radius:99px;overflow:hidden;margin-top:4px;background:var(--surface2)}
     .freshness-fill{height:100%;border-radius:99px;transition:width .5s}
@@ -329,7 +337,7 @@
 </div>
 <script>
 // ══ CONFIG ══════════════════════════════════════════════
-const PROXY     = "https://script.google.com/macros/s/AKfycbyMcPag_A4QUA8br4zHPTlznV57gporKyQtQA8-PjNSAZOcm7aT3MBBVVbwpKGKboud/exec";
+const PROXY     = "https://script.google.com/macros/s/AKfycbwr9I4ceTwi3GmD5mS_9Eg8Lpzm59gebPGX6uroEn2RHZxf1Y8TiAa2-2VcnnXSUhGy/exec";
 const D_SHOT_DB = "04d4afddfab64e84ab5d4f8ed212ea26";
 const D_BEAN_DB = "7559b26c96024b0791b35fabf5c50ca3";
 const ROAST_LEVELS   = ["Light","Medium-Light","Medium","Medium-Dark","Dark"];
@@ -673,7 +681,7 @@ function flavorNoteTagHTML(note){
 // ══ RATING & PIN ══════════════════════════════════════════════════════
 async function updateShotRating(shotId,rating){
   const props={"Rating":numProp(rating)};
-  await callNotion("PATCH",`/pages/${shotId}`,{properties:props});
+  await notionFetch(`/pages/${shotId}`,"PATCH",{properties:props});
   const s=logs.find(l=>l.id===shotId);if(s)s.rating=rating;
   renderShotsTab();renderBeanDetail();
 }
@@ -684,11 +692,11 @@ async function toggleShotPin(shotId){
   if(newPinned){
     const others=logs.filter(l=>l.bean===s.bean&&l.pinned&&l.id!==shotId);
     for(const o of others){
-      await callNotion("PATCH",`/pages/${o.id}`,{properties:{"Pinned":checkProp(false)}});
+      await notionFetch(`/pages/${o.id}`,"PATCH",{properties:{"Pinned":checkProp(false)}});
       o.pinned=false;
     }
   }
-  await callNotion("PATCH",`/pages/${shotId}`,{properties:{"Pinned":checkProp(newPinned)}});
+  await notionFetch(`/pages/${shotId}`,"PATCH",{properties:{"Pinned":checkProp(newPinned)}});
   s.pinned=newPinned;
   renderShotsTab();renderBeanDetail();
 }
@@ -725,7 +733,7 @@ async function submitBeanEdit(beanId){
   const notes=document.getElementById("bef-notes")?.value.trim();
   if(notes!==undefined)props["Notes"]=richText(notes);
   try{
-    await callNotion("PATCH",`/pages/${beanId}`,{properties:props});
+    await notionFetch(`/pages/${beanId}`,"PATCH",{properties:props});
     showSuccess("Bean updated ✓");
     await loadAll();
     navTo("bean-detail");
@@ -823,7 +831,7 @@ async function submitShotEdit(shotId){
     "Notes":richText(notes)
   };
   try{
-    await callNotion("PATCH",`/pages/${shotId}`,{properties:props});
+    await notionFetch(`/pages/${shotId}`,"PATCH",{properties:props});
     // Update local state
     const shot=logs.find(l=>l.id===shotId);
     if(shot){
@@ -836,6 +844,217 @@ async function submitShotEdit(shotId){
     showSuccess("Shot updated ✓");
     renderShotsTab();renderBeanDetail();
   }catch(e){showError("Failed to save shot changes");}
+}
+
+
+// ══ GRIND DIAL ═══════════════════════════════════════════════════════
+const DIAL_DEG_PER_NUM = 324/16; // 20.25° per number, 36° gap between 16 and 0
+const DIAL_W = 200;
+const DIAL_CX = 100, DIAL_CY = 100;
+
+function getPrevGrindSettings(){
+  const seen = new Set();
+  const vals = [];
+  for(const l of logs){
+    if(l.grindSetting){
+      const n = parseFloat(l.grindSetting);
+      if(!isNaN(n) && !seen.has(n)){seen.add(n);vals.push(n);}
+    }
+  }
+  return vals.slice(0,6).sort((a,b)=>a-b);
+}
+
+function buildDialHTML(canvasId, hiddenId, prevRowId){
+  return `<div class="grind-dial-wrap">
+    <div style="position:relative;display:inline-block">
+      <div style="position:absolute;right:-4px;top:50%;transform:translateY(-50%);width:10px;height:10px;background:#e53935;border-radius:50%;z-index:10;box-shadow:0 0 0 3px var(--surface)"></div>
+      <canvas id="${canvasId}" width="${DIAL_W}" height="${DIAL_W}" style="cursor:grab;border-radius:50%;touch-action:none;display:block"></canvas>
+    </div>
+    <div class="grind-dial-val" id="${canvasId}-val">0.0</div>
+    <div class="grind-dial-desc" id="${canvasId}-desc">Position 0 · finest</div>
+    <input type="hidden" id="${hiddenId}" value="0.0"/>
+  </div>
+  <div class="grind-prev-row" id="${prevRowId}"></div>`;
+}
+
+function initDial(canvasId, hiddenId, prevRowId, initVal){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let rot = initVal ? -(parseFloat(initVal) * DIAL_DEG_PER_NUM) : 0;
+  let dragging = false, lastA = 0;
+
+  function toRad(d){return d*Math.PI/180;}
+  function getA(x,y){return Math.atan2(y-DIAL_CY,x-DIAL_CX)*180/Math.PI;}
+
+  function draw(){
+    ctx.clearRect(0,0,DIAL_W,DIAL_W);
+    const outerR=96, faceR=89;
+    ctx.save();
+    ctx.translate(DIAL_CX,DIAL_CY);
+    ctx.rotate(toRad(rot));
+    ctx.translate(-DIAL_CX,-DIAL_CY);
+
+    // Bezel
+    ctx.beginPath();ctx.arc(DIAL_CX,DIAL_CY,outerR,0,Math.PI*2);
+    ctx.fillStyle='#c0bdb8';ctx.fill();
+    for(let i=0;i<100;i++){
+      const a=toRad(i*3.6),r=outerR-3;
+      ctx.beginPath();ctx.arc(DIAL_CX+r*Math.cos(a),DIAL_CY+r*Math.sin(a),1,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,0,0,0.12)';ctx.fill();
+    }
+    // Face - paper white
+    ctx.beginPath();ctx.arc(DIAL_CX,DIAL_CY,faceR,0,Math.PI*2);
+    ctx.fillStyle='#f8f5f0';ctx.fill();
+    ctx.strokeStyle='#d8d5d0';ctx.lineWidth=0.5;ctx.stroke();
+    // Inner
+    ctx.beginPath();ctx.arc(DIAL_CX,DIAL_CY,faceR-3,0,Math.PI*2);
+    ctx.fillStyle='#f3f0eb';ctx.fill();
+
+    const outerTickR=faceR-5;
+
+    for(let n=0;n<=16;n++){
+      const ang=n*DIAL_DEG_PER_NUM;
+      const ca=Math.cos(toRad(ang)),sa=Math.sin(toRad(ang));
+      const inEsp=n<=4;
+
+      // Major tick
+      ctx.beginPath();
+      ctx.moveTo(DIAL_CX+outerTickR*ca,DIAL_CY+outerTickR*sa);
+      ctx.lineTo(DIAL_CX+(outerTickR-8)*ca,DIAL_CY+(outerTickR-8)*sa);
+      ctx.strokeStyle=inEsp?'#777':'#aaa';
+      ctx.lineWidth=inEsp?0.8:0.5;
+      ctx.stroke();
+
+      // Number
+      const numR=faceR-20;
+      const nx=DIAL_CX+numR*ca,ny=DIAL_CY+numR*sa;
+      ctx.save();
+      ctx.translate(nx,ny);
+      ctx.rotate(-toRad(rot));
+      ctx.font=inEsp?'bold 8px DM Mono,monospace':'7px DM Mono,monospace';
+      ctx.fillStyle=inEsp?'#777':'#c0c0c0';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(n.toString(),0,0);
+      ctx.restore();
+
+      // Subdivisions
+      if(n<16){
+        if(n<4){
+          // Fine marks 0-4: 10 subdivisions
+          for(let s=1;s<10;s++){
+            const sa2=ang+s*(DIAL_DEG_PER_NUM/10);
+            const cs=Math.cos(toRad(sa2)),ss=Math.sin(toRad(sa2));
+            const isMid=s===5;
+            const tLen=isMid?4:2.5;
+            ctx.beginPath();
+            ctx.moveTo(DIAL_CX+outerTickR*cs,DIAL_CY+outerTickR*ss);
+            ctx.lineTo(DIAL_CX+(outerTickR-tLen)*cs,DIAL_CY+(outerTickR-tLen)*ss);
+            ctx.strokeStyle=isMid?'#888':'#aaa';
+            ctx.lineWidth=isMid?0.6:0.4;
+            ctx.stroke();
+          }
+        } else {
+          // After 4: midpoint only
+          const ma=ang+DIAL_DEG_PER_NUM/2;
+          const mc=Math.cos(toRad(ma)),ms=Math.sin(toRad(ma));
+          ctx.beginPath();
+          ctx.moveTo(DIAL_CX+outerTickR*mc,DIAL_CY+outerTickR*ms);
+          ctx.lineTo(DIAL_CX+(outerTickR-3)*mc,DIAL_CY+(outerTickR-3)*ms);
+          ctx.strokeStyle='#ccc';ctx.lineWidth=0.4;ctx.stroke();
+        }
+      }
+    }
+
+    // Hub
+    ctx.beginPath();ctx.arc(DIAL_CX,DIAL_CY,13,0,Math.PI*2);
+    ctx.fillStyle='#d8d5d0';ctx.fill();
+    ctx.beginPath();ctx.arc(DIAL_CX,DIAL_CY,7,0,Math.PI*2);
+    ctx.fillStyle='#c8c5c0';ctx.fill();
+
+    ctx.restore();
+
+    // Fixed red indicator
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(DIAL_CX+faceR-2,DIAL_CY);
+    ctx.lineTo(DIAL_CX+faceR-12,DIAL_CY);
+    ctx.strokeStyle='#e53935';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();
+    ctx.restore();
+  }
+
+  function getVal(){
+    let v=(-rot/DIAL_DEG_PER_NUM)%16;
+    v=((v%16)+16)%16;
+    return Math.round(v*10)/10;
+  }
+
+  function updateUI(){
+    const v=getVal();
+    const vEl=document.getElementById(canvasId+'-val');
+    const dEl=document.getElementById(canvasId+'-desc');
+    const hEl=document.getElementById(hiddenId);
+    if(vEl)vEl.textContent=v.toFixed(1);
+    if(hEl)hEl.value=v.toFixed(1);
+    if(dEl){
+      const inEsp=v<=4;
+      dEl.textContent=inEsp?`Setting ${v.toFixed(1)} · espresso zone`:'Outside espresso zone';
+      if(vEl)vEl.style.color=inEsp?'var(--gold)':'var(--muted)';
+    }
+  }
+
+  function getPos(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}
+
+  canvas.addEventListener('mousedown',e=>{
+    dragging=true;canvas.style.cursor='grabbing';
+    const r=canvas.getBoundingClientRect(),p=getPos(e);
+    lastA=getA((p.x-r.left)*(DIAL_W/r.width),(p.y-r.top)*(DIAL_W/r.height));
+  });
+  canvas.addEventListener('touchstart',e=>{
+    dragging=true;
+    const r=canvas.getBoundingClientRect(),p=getPos(e);
+    lastA=getA((p.x-r.left)*(DIAL_W/r.width),(p.y-r.top)*(DIAL_W/r.height));
+  },{passive:true});
+
+  function onMove(e){
+    if(!dragging)return;
+    const r=canvas.getBoundingClientRect(),p=getPos(e);
+    const x=(p.x-r.left)*(DIAL_W/r.width),y=(p.y-r.top)*(DIAL_W/r.height);
+    if(Math.sqrt((x-DIAL_CX)**2+(y-DIAL_CY)**2)<12)return;
+    const a=getA(x,y);
+    let d=a-lastA;
+    if(d>180)d-=360;if(d<-180)d+=360;
+    rot+=d;lastA=a;draw();updateUI();
+  }
+
+  // Store moveHandler so we can clean up if needed
+  canvas._moveHandler=onMove;
+  canvas._upHandler=()=>{dragging=false;canvas.style.cursor='grab';};
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('touchmove',onMove,{passive:true});
+  document.addEventListener('mouseup',canvas._upHandler);
+  document.addEventListener('touchend',canvas._upHandler);
+
+  // Prev used
+  function buildPrevBtns(){
+    const row=document.getElementById(prevRowId);
+    if(!row)return;
+    const prevVals=getPrevGrindSettings();
+    if(!prevVals.length){row.innerHTML='<span style="font-size:9px;color:#334155;font-family:DM Sans,sans-serif;font-style:italic">No previous settings yet</span>';return;}
+    row.innerHTML='<span style="font-size:8px;color:var(--muted);font-family:DM Sans,sans-serif;text-transform:uppercase;letter-spacing:.08em;margin-right:4px">Prev:</span>';
+    prevVals.forEach(v=>{
+      const b=document.createElement('button');
+      b.className='grind-prev-btn';
+      b.textContent=v.toFixed(1);
+      b.onclick=()=>{rot=-(v*DIAL_DEG_PER_NUM);draw();updateUI();};
+      row.appendChild(b);
+    });
+  }
+
+  draw();updateUI();buildPrevBtns();
+
+  // Set value programmatically
+  canvas.setDialValue=function(v){rot=-(parseFloat(v)*DIAL_DEG_PER_NUM);draw();updateUI();};
 }
 
 // ══ SHOTS TAB ════════════════════════════════════════════
@@ -981,7 +1200,10 @@ function renderQuickLogHTML(){
       <div class="form-group"><label class="label">Dose (g)</label><input type="number" id="ql-dose" placeholder="21.5" step="0.1"/></div>
       <div class="form-group"><label class="label">Yield (g)</label><input type="number" id="ql-yield" placeholder="43" step="0.1" oninput="updateQLFlowPreview()"/></div>
       <div class="form-group"><label class="label">Time (s)</label><input type="number" id="ql-time" placeholder="30" step="1" oninput="updateQLFlowPreview()"/></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="label">Grind setting</label><input type="text" id="ql-grind" placeholder="e.g. 3rd click from 0"/></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label class="label">Grind setting · Timemore 064S</label>
+        <div id="ql-grind-dial-container"></div>
+      </div>
     </div>
     <div class="form-group"><label class="label">Roast level</label><div class="pills" id="ql-roast-pills"></div></div>
     <div class="form-group"><label class="label">Taste</label><div class="pills" id="ql-taste-pills"></div></div>
@@ -1015,13 +1237,24 @@ function renderQuickLogHTML(){
   renderQLFlavorNotesPills();
   renderQLBodyPills();
   renderFormStars('ql-stars-row','qlRating');
+  // Init grind dial
+  const qlDialContainer=document.getElementById('ql-grind-dial-container');
+  if(qlDialContainer){
+    qlDialContainer.innerHTML=buildDialHTML('ql-dial-canvas','ql-grind','ql-grind-prev');
+    const initGrind=shotState.prefillGrind||'';
+    initDial('ql-dial-canvas','ql-grind','ql-grind-prev', initGrind||'0');
+  }
 }
 
 function prefillQuickLog(id){
   const bean=beans.find(b=>b.id===id);if(!bean)return;
   document.getElementById("ql-bean").value=bean.name;
   if(bean.defaultDose)document.getElementById("ql-dose").value=bean.defaultDose;
-  if(bean.defaultGrind)document.getElementById("ql-grind").value=bean.defaultGrind;
+  if(bean.defaultGrind){
+    const dc=document.getElementById('ql-dial-canvas');
+    if(dc&&dc.setDialValue)dc.setDialValue(parseFloat(bean.defaultGrind)||0);
+    else{const gh=document.getElementById('ql-grind');if(gh)gh.value=bean.defaultGrind;}
+  }
   if(bean.roast){shotState.roast=bean.roast;renderPillsGeneric("ql-roast-pills",ROAST_LEVELS,shotState.roast,null,"gold");}
 }
 
@@ -1288,9 +1521,10 @@ function renderBeanShotFormHTML(beanName,beanId){
       <div class="form-group"><label class="label">Dose (g)</label><input type="number" id="bsf-dose" value="${bean?.defaultDose||21.5}" step="0.1"/></div>
       <div class="form-group"><label class="label">Yield (g)</label><input type="number" id="bsf-yield" placeholder="${bestShot?bestShot.yieldG:43}" step="0.1" oninput="updateBSFPreview()"/></div>
       <div class="form-group"><label class="label">Time (s)</label><input type="number" id="bsf-time" placeholder="${bestShot?bestShot.timeS:30}" step="1" oninput="updateBSFPreview()"/></div>
-      <div class="form-group" style="grid-column:1/-1"><label class="label">Grind setting</label>
-        <input type="text" id="bsf-grind" value="${bean?.defaultGrind||""}" placeholder="e.g. 3rd click from 0"/>
-        ${bestShot?`<div class="prefill-notice">Best shot used: ${bestShot.grindSetting}</div>`:""}
+      <div class="form-group" style="grid-column:1/-1"><label class="label">Grind setting · Timemore 064S</label>
+        <div id="bsf-grind-dial-container"></div>
+        <input type="hidden" id="bsf-grind" value="${bean?.defaultGrind||'0'}"/>
+        ${bestShot?`<div class="prefill-notice">Best shot: ${bestShot.grindSetting}</div>`:""}
       </div>
     </div>
     <div class="form-group"><label class="label">Roast level</label><div class="pills" id="bsf-roast-pills"></div></div>
@@ -1325,6 +1559,13 @@ function renderBeanShotFormHTML(beanName,beanId){
   renderBSFFlavorNotesPills();
   renderBSFBodyPills();
   renderFormStars('bsf-stars-row','bsfRating');
+  const bsfDialContainer=document.getElementById('bsf-grind-dial-container');
+  if(bsfDialContainer){
+    bsfDialContainer.innerHTML=buildDialHTML('bsf-dial-canvas','bsf-grind','bsf-grind-prev');
+    const bsfBean=beans.find(b=>b.id===currentBeanId);
+    const initBsfGrind=bsfBean?.defaultGrind||'0';
+    initDial('bsf-dial-canvas','bsf-grind','bsf-grind-prev', initBsfGrind);
+  }
 }
 
 function renderBSFTastePills(){
