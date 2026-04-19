@@ -427,18 +427,64 @@ async function reloadBeans(){
 // ══ HELPERS ══════════════════════════════════════════════
 const today=()=>new Date().toISOString().split("T")[0];
 const tasteColor=t=>({Sour:"#ef4444","Slightly Sour":"#f97316","Balanced with Acidity":"#22c55e",Balanced:"#00ff80","Slightly Bitter":"#f97316",Bitter:"#ef4444"}[t]||"#94a3b8");
-const flowColor=v=>v>=1&&v<=2?"#22c55e":v<1?"#ef4444":"#f97316";
 const tagHTML=(l,c)=>`<span class="tag" style="border:1px solid ${c}44;background:${c}18;color:${c}">${l}</span>`;
 
-function flowBarHTML(value,ghostValue=null){
+function getBalancedZone(beanName){
+  if(!beanName)return null;
+  const balanced=logs.filter(l=>l.bean===beanName&&(l.taste==="Balanced"||l.taste==="Balanced with Acidity")&&l.flowRate>0);
+  if(balanced.length<2)return null;
+  const rates=balanced.map(l=>l.flowRate);
+  return{min:Math.min(...rates),max:Math.max(...rates)};
+}
+
+function flowColor(value,zone){
+  if(zone){
+    // Zone exists: green if inside, orange if close outside, red if extreme
+    if(value>=zone.min&&value<=zone.max)return"#22c55e";
+    const margin=(zone.max-zone.min)*0.5;
+    if(value>=zone.min-margin&&value<=zone.max+margin)return"#f97316";
+    return"#ef4444";
+  }
+  // No zone: gentle absolute fallback
+  if(value>=0.7&&value<=1.8)return"#22c55e";
+  if(value>=0.5&&value<=2.0)return"#f97316";
+  return"#ef4444";
+}
+
+function flowBarHTML(value,ghostValue=null,beanName=null){
   const pct=v=>Math.min(100,Math.max(0,((v-0.5)/1.5)*100));
-  const color=flowColor(value);
+  const zone=getBalancedZone(beanName);
+  const color=flowColor(value,zone);
+
+  // Range band HTML
+  let bandHTML="";
+  if(zone){
+    const bandLeft=pct(zone.min);
+    const bandWidth=pct(zone.max)-bandLeft;
+    bandHTML=`<div style="position:absolute;top:0;left:${bandLeft}%;width:${Math.max(bandWidth,2)}%;height:100%;background:#c8963e33;border-left:1px solid #c8963e66;border-right:1px solid #c8963e66;z-index:1;pointer-events:none"></div>`;
+  }
+
   const ghostHTML=ghostValue!=null&&Math.abs(ghostValue-value)>0.05
-    ?`<div class="flow-marker-ghost" style="left:${pct(ghostValue)}%"></div>`:"";
-  const legendHTML=ghostValue!=null&&Math.abs(ghostValue-value)>0.05
-    ?`<div class="flow-legend"><div class="flow-legend-item"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>This shot</div><div class="flow-legend-item"><div class="flow-legend-ghost"></div>Best shot</div></div>`:"";
+    ?`<div class="flow-marker-ghost" style="left:${pct(ghostValue)}%;z-index:3"></div>`:"";
+
+  // Legend
+  let legendItems=`<div class="flow-legend-item"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>This shot</div>`;
+  if(ghostValue!=null&&Math.abs(ghostValue-value)>0.05)
+    legendItems+=`<div class="flow-legend-item"><div class="flow-legend-ghost"></div>Best shot</div>`;
+  if(zone)
+    legendItems+=`<div class="flow-legend-item"><div style="width:12px;height:6px;background:#c8963e33;border:1px solid #c8963e66;border-radius:2px;display:inline-block"></div>Balanced zone</div>`;
+  const legendHTML=`<div class="flow-legend">${legendItems}</div>`;
+
+  // Status label
+  let statusHTML="";
+  if(zone){
+    if(value>=zone.min&&value<=zone.max)statusHTML=`<div style="font-size:9px;color:#22c55e;font-family:'DM Sans',sans-serif;margin-top:3px">✓ Inside your balanced zone</div>`;
+    else if(value<zone.min)statusHTML=`<div style="font-size:9px;color:#f97316;font-family:'DM Sans',sans-serif;margin-top:3px">Below zone · try going coarser</div>`;
+    else statusHTML=`<div style="font-size:9px;color:#f97316;font-family:'DM Sans',sans-serif;margin-top:3px">Above zone · try going finer</div>`;
+  }
+
   return`<div class="flow-labels"><span>0.5 g/s</span><span style="color:${color}">● ${value.toFixed(2)} g/s</span><span>2.0 g/s</span></div>
-<div class="flow-bar-track"><div class="flow-bar-fill" style="width:${pct(value)}%;background:${color}"></div>${ghostHTML}</div>${legendHTML}`;
+<div class="flow-bar-track" style="overflow:visible;position:relative">${bandHTML}<div class="flow-bar-fill" style="position:absolute;top:0;left:0;width:${pct(value)}%;height:100%;background:${color};border-radius:99px;z-index:2"></div>${ghostHTML}</div>${legendHTML}${statusHTML}`;
 }
 
 function deltaHTML(current,best,unit=""){
@@ -1057,6 +1103,26 @@ function initDial(canvasId, hiddenId, prevRowId, initVal){
   canvas.setDialValue=function(v){rot=-(parseFloat(v)*DIAL_DEG_PER_NUM);draw();updateUI();};
 }
 
+
+// ══ DELETE SHOT ════════════════════════════════════════════════════════
+function confirmDeleteShot(shotId, shotName){
+  const el = document.getElementById('shot-delete-confirm-'+shotId);
+  if(!el) return;
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+async function executeDeleteShot(shotId){
+  try{
+    await notionFetch(`/pages/${shotId}`,"PATCH",{archived:true});
+    logs = logs.filter(l=>l.id !== shotId);
+    showSuccess("Shot moved to trash ✓");
+    renderShotsTab();
+    renderBeanDetail();
+  }catch(e){
+    showError("Failed to delete shot");
+  }
+}
+
 // ══ SHOTS TAB ════════════════════════════════════════════
 function renderShotsTab(){
   // Stats
@@ -1142,7 +1208,7 @@ function renderShotCard(shot,idx,bestShot){
       <div class="data-cell"><div class="data-cell-label">Time</div><div class="data-cell-value">${shot.timeS}s</div>${tDelta}</div>
       <div class="data-cell"><div class="data-cell-label">Ratio</div><div class="data-cell-value">${shot.ratio||"—"}</div></div>
     </div>
-    ${flowRate>0?`<div class="flow-box">${flowBarHTML(flowRate,showDeltas?ghostFlow:null)}</div>`:""}
+    ${flowRate>0?`<div class="flow-box">${flowBarHTML(flowRate,showDeltas?ghostFlow:null,shot.bean)}</div>`:""}
     <div class="info-row">
       <div class="info-cell"><div class="label">Grind</div><div style="font-size:13px;color:#e2e8f0">${shot.grindSetting||"—"}</div>${grindMatchHTML}</div>
       <div class="info-cell"><div class="label">Roast</div><div style="font-size:13px;color:#e2e8f0">${shot.roast||"—"}</div></div>
@@ -1160,9 +1226,19 @@ function renderShotCard(shot,idx,bestShot){
           <span style="font-size:11px;color:#475569">${shot.grinder}</span>
         </div>`:""}
       </div>`:`<div></div>`}
-      <button onclick="event.stopPropagation();toggleShotEdit('${shot.id}')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;cursor:pointer;flex-shrink:0">Edit</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="event.stopPropagation();toggleShotEdit('${shot.id}')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;cursor:pointer">Edit</button>
+        <button onclick="event.stopPropagation();confirmDeleteShot('${shot.id}')" style="background:none;border:1px solid #334155;border-radius:8px;padding:4px 10px;font-size:10px;color:#475569;font-family:'DM Mono',monospace;cursor:pointer">✕</button>
+      </div>
     </div>
     <div id="shot-edit-${shot.id}" style="display:none"></div>
+    <div id="shot-delete-confirm-${shot.id}" style="display:none;align-items:center;justify-content:space-between;background:#1a0a0a;border:1px solid #ef444444;border-radius:8px;padding:8px 12px;margin-top:8px">
+      <span style="font-size:11px;color:#ef4444;font-family:'DM Sans',sans-serif">Move this shot to trash?</span>
+      <div style="display:flex;gap:6px">
+        <button onclick="event.stopPropagation();executeDeleteShot('${shot.id}')" style="background:#ef444422;border:1px solid #ef444466;border-radius:6px;padding:4px 12px;font-size:10px;color:#ef4444;font-family:'DM Mono',monospace;cursor:pointer">Delete</button>
+        <button onclick="event.stopPropagation();confirmDeleteShot('${shot.id}')" style="background:none;border:1px solid #334155;border-radius:6px;padding:4px 10px;font-size:10px;color:#475569;font-family:'DM Mono',monospace;cursor:pointer">Cancel</button>
+      </div>
+    </div>
   </div>`;
 }
 
